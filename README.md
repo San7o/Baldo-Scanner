@@ -22,4 +22,4 @@ signatures in the malware db.
 
 ## Architecture Image
 
-TODO
+![image](https://github.com/user-attachments/assets/eb98d30b-05cf-4955-bc28-ce1c6c2ffe07)
