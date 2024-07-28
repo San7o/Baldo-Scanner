@@ -11,9 +11,9 @@ may use `eBPF` for hooking.
 
 - A `user space daemon`: An event driven daemon that listens for events from the kernel module, updates It's malware DB with online resources, spawns threads when alanyzing with the analysis engine, sets iptables rules.
 
-- A `Malware DB`: Collection of malware signatures, malicious IPs and rules.
+- A `Malware DB`: Collection of malware signatures, malicious IPs and `YARA` rules.
 
-- An `analysis engine`: Scans a file's signature and binary data based on rules and
+- An `analysis engine`: Scans a file's signature and binary data based on `YARA` rules and
 signatures in the malware db.
 
 - A `cli` application to interface with the daemon via `Berkley Sockets`
