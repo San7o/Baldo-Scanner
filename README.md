@@ -2,7 +2,7 @@
 
 ## Project Statement
 
-This project aims to build a MVP antivirus in C++ for a linux operating system, providing up to date network prodection and static malware analysis.
+This project aims to build a MVP antivirus in C++ for a linux operating system, providing up to date network protection and static malware analysis.
 
 The application is composed of:
 
