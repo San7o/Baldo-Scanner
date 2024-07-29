@@ -2,19 +2,23 @@
 #include "daemon/daemon.hpp"
 #include "common/logger.hpp"
 
+#include <unistd.h>
+
 using namespace AV;
 
-int main(int argc, char** argv) {
-  
+int main(int argc, char** argv)
+{
+
     Daemon::Init();
 
     Logger::Init();
     Logger::Log(Enums::LogLevel::INFO, "Daemon started");
 
-    while(1) {
+    while(!Daemon::shutdown)
+    {
         Daemon::listen_socket();
-        Daemon::accept_connection();
     }
 
+    Daemon::graceful_shutdown();
     return 0;
 }

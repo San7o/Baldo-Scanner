@@ -14,7 +14,7 @@ file(GLOB CLI_SOURCES "cli/*.cpp" "common/*.cpp")
 add_executable(daemon ${DAEMON_SOURCES})
 add_executable(cli ${CLI_SOURCES})
 
-target_link_libraries(daemon pthread)
+# target_link_libraries(daemon pthread)
 
-target_compile_options(daemon PRIVATE -Wall)
-target_compile_options(cli PRIVATE -Wall)
+target_compile_options(daemon PRIVATE -Wall -pthread -lpthread)
+target_compile_options(cli PRIVATE -Wall -pthread -lpthread)

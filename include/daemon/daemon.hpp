@@ -21,15 +21,16 @@ class Daemon {
 public:
     static int fd;
     static std::vector<pthread_t> threads;
+    static bool shutdown;
 
     Daemon() = delete;
 
     static void Init();
     static void listen_socket();
-    static void accept_connection();
+    static void graceful_shutdown();
 private:
     static void hard_shutdown(int signum);
-    static void soft_shutdown(int signum);
+    static void set_graceful_shutdown(int signum);
     static void *handle_connection(void* arg);
     static void close_fd(void* arg);
 };
