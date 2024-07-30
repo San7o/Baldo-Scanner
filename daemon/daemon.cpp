@@ -1,5 +1,6 @@
 #include "daemon/daemon.hpp"
 #include "common/logger.hpp"
+#include "common/settings.hpp"
 #include <unistd.h>
 
 using namespace AV;
@@ -144,10 +145,18 @@ void *Daemon::handle_connection(void* arg)
         exit(1);
     }
 
-    // Handling
-    std::cout << "Handling connection" << std::endl;
-    sleep(1);
-
+    // Receive settings from client
+    struct Settings settings;
+    if (recv(fd, &settings, 1032, 0) == -1)
+    {
+        perror("recv");
+    }
+    else {
+         if (send(fd, "Ok", 2, 0) == -1)
+         {
+             perror("send");
+         }
+    }
 
     pthread_cleanup_pop(1);
     return NULL;

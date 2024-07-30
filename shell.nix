@@ -9,6 +9,7 @@ pkgs.mkShell {
     cmake                   # build system
     doxygen                 # documentation
     valgrind                # memory debugging
+    boost                   # C++ libraries
   ];
 
   LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:";
