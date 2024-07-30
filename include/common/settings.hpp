@@ -15,6 +15,7 @@ enum class ScanType {
 
 struct Settings {
      Enums::ScanType scanType;
+     bool quit;
      bool update;
      bool version;
      bool scan;

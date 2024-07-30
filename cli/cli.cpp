@@ -8,53 +8,68 @@
 using namespace AV;
 namespace po = boost::program_options;
 
-struct Settings Cli::settings = {
+Settings Cli::settings = 
+{
     Enums::ScanType::ALL,
+    false,
     false,
     false,
     false,
     {},
 };
 
-void Cli::Init(int argc, char** argv) {
-
+void Cli::Init(int argc, char** argv)
+{
     Cli::ParseArgs(argc, argv);
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd == -1) {
+    if (fd == -1)
+    {
         std::cout << "Error: " << errno << std::endl;
     }
 
     struct sockaddr_un addr;
     addr.sun_family = AF_UNIX;
-    if (strcpy(addr.sun_path, SOCK_PATH) == NULL) {
+    if (strcpy(addr.sun_path, SOCK_PATH) == NULL)
+    {
         std::cout << "Error: " << errno << std::endl;
     }
-    if (connect(fd, (struct sockaddr*) &addr, sizeof(addr)) == -1) {
+    if (connect(fd, (struct sockaddr*) &addr, sizeof(addr)) == -1)
+    {
         perror("bind");
     }
 
-    if (send(fd, &Cli::settings, sizeof(Cli::settings), 0) == -1) {
+    /*
+    Logger::Log(Enums::LogLevel::DEBUG,
+                    "Size of settings: " + std::to_string(sizeof(Cli::settings)));
+    */
+
+    if (send(fd, &Cli::settings, sizeof(Cli::settings), 0) == -1)
+    {
         perror("send");
     }
-    else {
+    else
+    {
         char buf[1024];
-        if (recv(fd, buf, sizeof(buf), 0) == -1) {
-            perror("recv");
-        }
-        else {
+        while (recv(fd, buf, sizeof(buf), 0) > 0)
+        {
            Logger::Log(Enums::LogLevel::INFO, buf);
         }
     }
 }
 
-void Cli::ParseArgs(int argc, char** argv) {
+void Cli::ParseArgs(int argc, char** argv)
+{
 
     po::options_description generic("Generic options");
     generic.add_options()
         ("help,h", "produce help message and exit")
-        ("version,v", "print version information and exit")
-        ("update,u", "update Malware database");
+        ("version,v", "print version information and exit");
+
+    po::options_description daemon_options("Update Options");
+    daemon_options.add_options()
+        ("update,u", "update Malware database")
+        ("quit,q", "quit daemon");
 
     po::options_description scan_options("Scan Options");
     scan_options.add_options()
@@ -62,33 +77,44 @@ void Cli::ParseArgs(int argc, char** argv) {
         ("type,t", po::value<int>(), "type of scan: 0=signature 1=roules, 2=all[default]");
 
     po::options_description desc("Allowed options");
-    desc.add(generic).add(scan_options);
+    desc.add(generic).add(daemon_options).add(scan_options);
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
 
-    if (vm.count("help")) {
+    if (vm.count("help"))
+    {
         std::cout << desc << std::endl;
         exit(0);
     }
 
-    if (vm.count("version")) {
+    if (vm.count("quit"))
+    {
+        Cli::settings.quit = true;
+    }
+
+    if (vm.count("version"))
+    {
         Cli::settings.version = true;
     }
 
-    if (vm.count("scan")) {
+    if (vm.count("scan"))
+    {
         Cli::settings.scan = true;
         std::string path = vm["scan"].as<std::string>();
-        if (strcpy(Cli::settings.scanFile, path.c_str()) == NULL) {
+        if (strcpy(Cli::settings.scanFile, path.c_str()) == NULL)
+        {
             perror("strcpy");
             exit(1);
         }
     }
 
-    if (vm.count("type")) {
+    if (vm.count("type"))
+    {
         int type = vm["type"].as<int>();
-        switch (type) {
+        switch (type)
+        {
             case 0:
                 Cli::settings.scanType = Enums::ScanType::SIGNATURE;
                 break;
@@ -104,7 +130,8 @@ void Cli::ParseArgs(int argc, char** argv) {
         }
     }
 
-    if (vm.count("update")) {
+    if (vm.count("update"))
+    {
         Cli::settings.update = true;
     }
 }

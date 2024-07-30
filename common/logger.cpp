@@ -9,15 +9,19 @@ using namespace AV;
 FILE* Logger::log_file;
 Enums::LogLevel Logger::log_level;
 
-void Logger::Init() {
+void Logger::Init()
+{
     log_level = Enums::LogLevel::INFO;
     auto path = std::filesystem::absolute("logs/log.txt");
     Logger::SetLogFile(path);
 }
 
-void Logger::Log(Enums::LogLevel level, std::string message) {
-    if (level >= log_level) {
-        switch (level) {
+void Logger::Log(Enums::LogLevel level, std::string message)
+{
+    if (level >= log_level)
+    {
+        switch (level)
+        {
             case Enums::LogLevel::DEBUG:
                 std::cout << "DEBUG: ";
                 break;
@@ -35,11 +39,13 @@ void Logger::Log(Enums::LogLevel level, std::string message) {
         }
         std::cout << message << std::endl;
 
-        if (log_file != nullptr) {
+        if (log_file != nullptr)
+        {
             time_t now = time(&now);
             struct tm ltm;
             localtime_r(&now, &ltm);
-            fprintf(log_file, "============%d/%d/%d-%d:%d==========\n", ltm.tm_year, ltm.tm_mon, ltm.tm_mday, ltm.tm_hour, ltm.tm_min);
+            fprintf(log_file, "============%d/%d/%d-%d:%d==========\n",
+                            ltm.tm_year, ltm.tm_mon, ltm.tm_mday, ltm.tm_hour, ltm.tm_min);
             switch (level) {
                 case Enums::LogLevel::DEBUG:
                     fprintf(log_file, "DEBUG: ");
@@ -61,13 +67,16 @@ void Logger::Log(Enums::LogLevel level, std::string message) {
     }
 }
 
-void Logger::SetLogLevel(Enums::LogLevel level) {
+void Logger::SetLogLevel(Enums::LogLevel level)
+{
     log_level = level;
 }
 
-void Logger::SetLogFile(std::string path) {
+void Logger::SetLogFile(std::string path)
+{
     log_file = fopen(path.c_str(), "a+");
-    if (log_file == nullptr) {
+    if (log_file == nullptr)
+    {
         perror("fopen");
     }
 }

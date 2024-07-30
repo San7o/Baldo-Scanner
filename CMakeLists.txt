@@ -8,7 +8,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 include_directories(include)
 
-file(GLOB DAEMON_SOURCES "daemon/*.cpp" "common/*.cpp")
+file(GLOB DAEMON_SOURCES "daemon/*.cpp" "daemon/**/*" "common/*.cpp")
 file(GLOB CLI_SOURCES "cli/*.cpp" "common/*.cpp")
 
 add_executable(daemon ${DAEMON_SOURCES})

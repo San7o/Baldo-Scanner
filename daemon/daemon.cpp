@@ -1,4 +1,5 @@
 #include "daemon/daemon.hpp"
+#include "daemon/malware_db.hpp"
 #include "common/logger.hpp"
 #include "common/settings.hpp"
 #include <unistd.h>
@@ -8,6 +9,7 @@ using namespace AV;
 int Daemon::fd;
 std::vector<pthread_t> Daemon::threads = {};
 bool Daemon::shutdown = false;
+std::string Daemon::version = VERSION;
 
 void Daemon::Init()
 {
@@ -151,11 +153,32 @@ void *Daemon::handle_connection(void* arg)
     {
         perror("recv");
     }
+
+    // Execute task
+    if (settings.quit)
+    {
+        graceful_shutdown();
+    }
+    else if (settings.version) {
+        if (send(fd, "AV 1.0", 7, 0) == -1) {
+            perror("send");
+        }
+    }
+    // TODO
     else {
-         if (send(fd, "Ok", 2, 0) == -1)
-         {
-             perror("send");
-         }
+        MalwareDB db("/tmp/malware.db");
+        
+        if (settings.update)
+        {
+            db.fetchDB();
+            // TODO
+            // update
+        }
+
+        // TODO
+        if (settings.scan)
+        {
+        }
     }
 
     pthread_cleanup_pop(1);

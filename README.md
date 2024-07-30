@@ -20,6 +20,28 @@ signatures in the malware db.
 
 - There might be a web application in the future
 
+
 ## Architecture Image
 
 ![image](https://github.com/user-attachments/assets/2982a357-3c3f-4e1b-9255-7c6e3db5e92d)
+
+
+Currently, the only supported platform is Linux.
+
+## Building the project
+
+
+To build the project with `cmake`, run:
+
+```bash
+cmake -Bbuild
+cmale --build build
+```
+
+The binaries `build/daemon` and `build/cli` will be generated.
+
+
+You can compile the docs with `doxygen`:
+```bash
+doxygen doxygen.conf
+```

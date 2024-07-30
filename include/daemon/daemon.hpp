@@ -13,6 +13,7 @@
 #include <filesystem>
 
 #define SOCK_PATH "/tmp/av1"
+#define VERSION "1.0"
 
 namespace AV {
 
@@ -22,6 +23,7 @@ public:
     static int fd;
     static std::vector<pthread_t> threads;
     static bool shutdown;
+    static std::string version;
 
     Daemon() = delete;
 
