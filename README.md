@@ -28,6 +28,14 @@ signatures in the malware db.
 
 Currently, the only supported platform is Linux.
 
+## Dependencies
+
+- `C++17` compiler
+
+- `cmake` to build the project
+
+- `curl` to update with latest malware signatures
+
 ## Building the project
 
 

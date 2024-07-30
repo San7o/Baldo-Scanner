@@ -66,7 +66,7 @@ void Cli::ParseArgs(int argc, char** argv)
         ("help,h", "produce help message and exit")
         ("version,v", "print version information and exit");
 
-    po::options_description daemon_options("Update Options");
+    po::options_description daemon_options("Daemon ptions");
     daemon_options.add_options()
         ("update,u", "update Malware database")
         ("quit,q", "quit daemon");
