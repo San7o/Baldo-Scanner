@@ -12,6 +12,8 @@
 #include <signal.h>
 #include <filesystem>
 
+#include "common/settings.hpp"
+
 #define SOCK_PATH "/tmp/av1"
 #define VERSION "1.0"
 
@@ -24,6 +26,7 @@ public:
     static std::vector<pthread_t> threads;
     static bool shutdown;
     static std::string version;
+    static std::string rulesPath;
 
     Daemon() = delete;
 
@@ -35,6 +38,7 @@ private:
     static void set_graceful_shutdown(int signum);
     static void *handle_connection(void* arg);
     static void close_fd(void* arg);
+    static void print_settings(Settings settings);
 };
 
 }

@@ -20,6 +20,8 @@ struct Settings {
      bool version;
      bool scan;
      char scanFile[MAX_PATH];
+     char yaraRulesPath[MAX_PATH];
+     char signaturesPath[MAX_PATH];
 };
 
 } // namespace AV

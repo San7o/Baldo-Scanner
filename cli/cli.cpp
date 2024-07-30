@@ -16,6 +16,8 @@ Settings Cli::settings =
     false,
     false,
     {},
+    {},
+    {}
 };
 
 void Cli::Init(int argc, char** argv)
@@ -25,18 +27,21 @@ void Cli::Init(int argc, char** argv)
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd == -1)
     {
-        std::cout << "Error: " << errno << std::endl;
+        perror("socket");
+        exit(1);
     }
 
     struct sockaddr_un addr;
     addr.sun_family = AF_UNIX;
     if (strcpy(addr.sun_path, SOCK_PATH) == NULL)
     {
-        std::cout << "Error: " << errno << std::endl;
+        perror("strcpy");
+        exit(1);
     }
     if (connect(fd, (struct sockaddr*) &addr, sizeof(addr)) == -1)
     {
         perror("bind");
+        exit(1);
     }
 
     /*
@@ -47,6 +52,7 @@ void Cli::Init(int argc, char** argv)
     if (send(fd, &Cli::settings, sizeof(Cli::settings), 0) == -1)
     {
         perror("send");
+        exit(1);
     }
     else
     {
@@ -66,15 +72,17 @@ void Cli::ParseArgs(int argc, char** argv)
         ("help,h", "produce help message and exit")
         ("version,v", "print version information and exit");
 
-    po::options_description daemon_options("Daemon ptions");
+    po::options_description daemon_options("Daemon options");
     daemon_options.add_options()
-        ("update,u", "update Malware database")
+        ("update,u", "update Malware signatures database")
         ("quit,q", "quit daemon");
 
     po::options_description scan_options("Scan Options");
     scan_options.add_options()
-        ("scan,s", po::value<std::string>(), "scan a file")
-        ("type,t", po::value<int>(), "type of scan: 0=signature 1=roules, 2=all[default]");
+        ("scan,s", po::value<std::string>(), "scan a file or directory")
+        ("type,t", po::value<int>(), "type of scan: 0=signature 1=rules, 2=all[default]")
+        ("load,l", po::value<std::string>(), "load signatures CSV")
+        ("yara-rules,y", po::value<std::string>(), "set directory of yara rules");
 
     po::options_description desc("Allowed options");
     desc.add(generic).add(daemon_options).add(scan_options);
@@ -97,6 +105,26 @@ void Cli::ParseArgs(int argc, char** argv)
     if (vm.count("version"))
     {
         Cli::settings.version = true;
+    }
+
+    if (vm.count("yara-rules"))
+    {
+        std::string path = vm["yara-rules"].as<std::string>();
+        if (strcpy(Cli::settings.yaraRulesPath, path.c_str()) == NULL)
+        {
+            perror("strcpy");
+            exit(1);
+        }
+    }
+
+    if (vm.count("load"))
+    {
+        std::string path = vm["load"].as<std::string>();
+        if (strcpy(Cli::settings.signaturesPath, path.c_str()) == NULL)
+        {
+            perror("strcpy");
+            exit(1);
+        }
     }
 
     if (vm.count("scan"))
@@ -125,7 +153,7 @@ void Cli::ParseArgs(int argc, char** argv)
                 Cli::settings.scanType = Enums::ScanType::ALL;
                 break;
             default:
-                std::cout << "Invalid scan type" << std::endl;
+                Logger::Log(Enums::LogLevel::ERROR, "Invalid scan type");
                 exit(1);
         }
     }

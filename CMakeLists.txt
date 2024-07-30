@@ -15,7 +15,8 @@ add_executable(daemon ${DAEMON_SOURCES})
 add_executable(cli ${CLI_SOURCES})
 
 # target_link_libraries(daemon pthread)
-target_link_libraries(cli boost_program_options)
+target_link_libraries(daemon pthread boost_program_options curl curlpp)
+target_link_libraries(cli pthread boost_program_options)
 
-target_compile_options(daemon PRIVATE -Wall -pthread -lpthread)
-target_compile_options(cli PRIVATE -Wall -pthread -lpthread)
+target_compile_options(daemon PRIVATE -Wall)
+target_compile_options(cli PRIVATE -Wall)

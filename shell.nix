@@ -10,7 +10,9 @@ pkgs.mkShell {
     doxygen                 # documentation
     valgrind                # memory debugging
     boost                   # C++ libraries
+    curlFull                # libcurl
+    curlpp                  # C++ wrapper for libcurl
   ];
 
-  LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:";
+  LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.boost}/lib:${pkgs.curlFull}/lib:${pkgs.curlpp}/lib";
 }

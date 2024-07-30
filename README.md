@@ -34,7 +34,9 @@ Currently, the only supported platform is Linux.
 
 - `cmake` to build the project
 
-- `curl` to update with latest malware signatures
+- `curlpp` and `libcurl` to fetch web APIs
+
+- `unzip`
 
 ## Building the project
 
@@ -43,7 +45,7 @@ To build the project with `cmake`, run:
 
 ```bash
 cmake -Bbuild
-cmale --build build
+cmake --build build
 ```
 
 The binaries `build/daemon` and `build/cli` will be generated.

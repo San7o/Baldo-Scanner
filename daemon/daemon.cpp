@@ -10,9 +10,20 @@ int Daemon::fd;
 std::vector<pthread_t> Daemon::threads = {};
 bool Daemon::shutdown = false;
 std::string Daemon::version = VERSION;
+std::string Daemon::rulesPath = "/etc/antivirus/yara-rules/";
 
 void Daemon::Init()
 {
+
+    if (!std::filesystem::exists("/etc/antivirus"))
+    {
+        if (std::filesystem::create_directories("/etc/antivirus") == false)
+        {
+            perror("create_directory");
+            exit(1);
+        }
+    }
+
     fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd == -1)
     {
@@ -149,10 +160,13 @@ void *Daemon::handle_connection(void* arg)
 
     // Receive settings from client
     struct Settings settings;
-    if (recv(fd, &settings, 1032, 0) == -1)
+    if (recv(fd, &settings, 3080, 0) == -1)
     {
         perror("recv");
     }
+
+    Logger::Log(Enums::LogLevel::INFO, "Connection received");
+    print_settings(settings);
 
     // Execute task
     if (settings.quit)
@@ -164,15 +178,22 @@ void *Daemon::handle_connection(void* arg)
             perror("send");
         }
     }
-    // TODO
     else {
-        MalwareDB db("/tmp/malware.db");
+        MalwareDB db("/etc/antivirus/signatures.db");
         
         if (settings.update)
         {
-            db.fetchDB();
-            // TODO
-            // update
+            db.update();
+        }
+
+        if (strlen(settings.signaturesPath) > 0)
+        {
+            db.load(settings.signaturesPath);
+        }
+        
+        if (strlen(settings.yaraRulesPath) > 0 )
+        {
+            Daemon::rulesPath = settings.yaraRulesPath;
         }
 
         // TODO
@@ -192,4 +213,21 @@ void Daemon::close_fd(void* arg)
     {
         perror("close");
     }
+}
+
+void Daemon::print_settings(Settings settings)
+{
+    using namespace AV::Enums;
+    using namespace std;
+    Logger::Log(LogLevel::DEBUG, "Scan: "      + to_string(settings.scan));
+    Logger::Log(LogLevel::DEBUG, "Scan type: " + to_string(static_cast<int>(settings.scanType)));
+    Logger::Log(LogLevel::DEBUG, "Update: "    + to_string(settings.update));
+    Logger::Log(LogLevel::DEBUG, "Version: "   + to_string(settings.version));
+    Logger::Log(LogLevel::DEBUG, "Quit: "      + to_string(settings.quit));
+    Logger::Log(LogLevel::DEBUG, "Scan file: " + string(settings.scanFile));
+    Logger::Log(LogLevel::DEBUG, "Yara rules path: " + string(settings.yaraRulesPath));
+    Logger::Log(LogLevel::DEBUG, "Signatures path: " + string(settings.signaturesPath));
+
+
+
 }
