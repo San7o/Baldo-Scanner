@@ -4,11 +4,14 @@
 #include <string>
 #include <stdio.h>
 
-namespace AV {
+namespace AV
+{
 
-namespace Enums {
+namespace Enums
+{
 
-enum class LogLevel {
+enum class LogLevel
+{
     DEBUG,
     INFO,
     WARN,
@@ -17,7 +20,8 @@ enum class LogLevel {
 
 }
 
-class Logger {
+class Logger
+{
 public:
     static FILE* log_file;
     static Enums::LogLevel log_level;

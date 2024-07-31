@@ -2,6 +2,7 @@
 #include "daemon/malware_db.hpp"
 #include "common/logger.hpp"
 #include "common/settings.hpp"
+#include "daemon/engine.hpp"
 #include <unistd.h>
 
 using namespace AV;
@@ -14,7 +15,6 @@ std::string Daemon::rulesPath = "/etc/antivirus/yara-rules/";
 
 void Daemon::Init()
 {
-
     if (!std::filesystem::exists("/etc/antivirus"))
     {
         if (std::filesystem::create_directories("/etc/antivirus") == false)
@@ -54,7 +54,7 @@ void Daemon::Init()
     sa.sa_handler = set_graceful_shutdown;
     sa.sa_flags = 0;
     sigemptyset(&sa.sa_mask);
-    sigaction(SIGINT, &sa, NULL);    // graceful shutdown
+    sigaction(SIGINT, &sa, NULL);               // graceful shutdown
 
     struct sigaction sterm;
     sterm.sa_handler = hard_shutdown;
@@ -77,6 +77,7 @@ void Daemon::listen_socket()
     if (listen(fd, 5) == -1)
     {
         perror("listen");
+        close(fd);
         exit(1);
     }
     int new_fd = accept(fd, NULL, NULL);
@@ -90,7 +91,6 @@ void Daemon::listen_socket()
     if (pthread_attr_init(&attr) != 0)
     {
         perror("pthread_attr_init");
-        exit(1);
     }
 
     if (!Daemon::shutdown) {
@@ -104,7 +104,6 @@ void Daemon::listen_socket()
         if (pthread_attr_destroy(&attr))
         {
             perror("pthread_attr_destroy");
-            exit(1);
         }
     }
 }
@@ -113,7 +112,8 @@ void Daemon::hard_shutdown(int signum)
 {
     Logger::Log(Enums::LogLevel::INFO, "Daemon shutting down hard");
 
-    for (auto thread : threads) {
+    for (auto thread : threads)
+    {
         if (pthread_cancel(thread) != 0)
         {
             perror("pthread_cancel");
@@ -131,7 +131,8 @@ void Daemon::set_graceful_shutdown(int signum)
 void Daemon::graceful_shutdown()
 {
     Logger::Log(Enums::LogLevel::INFO, "Daemon shutting down gracefully");
-    for (auto thread : threads) {
+    for (auto thread : threads)
+    {
         if (pthread_join(thread, NULL) != 0)
         {
             perror("pthread_join");
@@ -145,7 +146,7 @@ void *Daemon::handle_connection(void* arg)
 {
     int fd = *(int*) arg;
 
-    pthread_cleanup_push(close_fd, &fd);
+    pthread_cleanup_push(close_fd, arg);
 
     sigset_t set;
     sigemptyset(&set);
@@ -158,27 +159,37 @@ void *Daemon::handle_connection(void* arg)
         exit(1);
     }
 
-    // Receive settings from client
     struct Settings settings;
     if (recv(fd, &settings, 3080, 0) == -1)
     {
         perror("recv");
+        pthread_exit(NULL);
     }
 
     Logger::Log(Enums::LogLevel::INFO, "Connection received");
     print_settings(settings);
 
-    // Execute task
+    parse_settings(settings, fd);
+
+    pthread_cleanup_pop(1);
+    return NULL;
+}
+
+void Daemon::parse_settings(Settings settings, int fd)
+{
     if (settings.quit)
     {
         graceful_shutdown();
     }
-    else if (settings.version) {
+    else if (settings.version)
+    {
         if (send(fd, "AV 1.0", 7, 0) == -1) {
             perror("send");
+            pthread_exit(NULL);
         }
     }
-    else {
+    else
+    {
         MalwareDB db("/etc/antivirus/signatures.db");
         
         if (settings.update)
@@ -199,17 +210,16 @@ void *Daemon::handle_connection(void* arg)
         // TODO
         if (settings.scan)
         {
+            Engine engine(settings.scanFile, Daemon::rulesPath, &db);
+            engine.scan(settings.scanType);
         }
     }
-
-    pthread_cleanup_pop(1);
-    return NULL;
 }
 
 void Daemon::close_fd(void* arg)
 {
-    int fd = *(int*) arg;
-    if (close(fd) == -1)
+    int *fd = (int*) arg;
+    if (close(*fd) == -1)
     {
         perror("close");
     }
@@ -227,7 +237,4 @@ void Daemon::print_settings(Settings settings)
     Logger::Log(LogLevel::DEBUG, "Scan file: " + string(settings.scanFile));
     Logger::Log(LogLevel::DEBUG, "Yara rules path: " + string(settings.yaraRulesPath));
     Logger::Log(LogLevel::DEBUG, "Signatures path: " + string(settings.signaturesPath));
-
-
-
 }

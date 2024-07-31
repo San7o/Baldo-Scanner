@@ -147,7 +147,7 @@ void Cli::ParseArgs(int argc, char** argv)
                 Cli::settings.scanType = Enums::ScanType::SIGNATURE;
                 break;
             case 1:
-                Cli::settings.scanType = Enums::ScanType::ROULES;
+                Cli::settings.scanType = Enums::ScanType::RULES;
                 break;
             case 2:
                 Cli::settings.scanType = Enums::ScanType::ALL;

@@ -1,19 +1,23 @@
 #pragma once
 #define MAX_PATH 1024
 
-namespace AV {
+namespace AV
+{
 
-namespace Enums {
+namespace Enums
+{
 
-enum class ScanType {
+enum class ScanType
+{
     SIGNATURE = 0,
-    ROULES,
+    RULES,
     ALL
 };
 
 } // namespace Enums
 
-struct Settings {
+struct Settings
+{
      Enums::ScanType scanType;
      bool quit;
      bool update;

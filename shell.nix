@@ -12,7 +12,8 @@ pkgs.mkShell {
     boost                   # C++ libraries
     curlFull                # libcurl
     curlpp                  # C++ wrapper for libcurl
+    openssl_3_3             # libressl
   ];
 
-  LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.boost}/lib:${pkgs.curlFull}/lib:${pkgs.curlpp}/lib";
+  LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.boost}/lib:${pkgs.curlFull}/lib:${pkgs.curlpp}/lib:${pkgs.opensll_3_3}/lib";
 }

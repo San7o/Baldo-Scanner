@@ -10,9 +10,11 @@
 #include <cerrno>
 #include <stdio.h>
 
-namespace AV {
+namespace AV
+{
 
-class Cli {
+class Cli
+{
 public:
     static struct Settings settings;
 
