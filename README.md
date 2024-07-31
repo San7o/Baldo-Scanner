@@ -38,8 +38,9 @@ Currently, the only supported platform is Linux.
 
 - `unzip`
 
-## Building the project
+- `openssl3.3`
 
+## Building the project
 
 To build the project with `cmake`, run:
 
@@ -49,7 +50,6 @@ cmake --build build
 ```
 
 The binaries `build/daemon` and `build/cli` will be generated.
-
 
 You can compile the docs with `doxygen`:
 ```bash

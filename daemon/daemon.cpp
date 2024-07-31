@@ -3,7 +3,10 @@
 #include "common/logger.hpp"
 #include "common/settings.hpp"
 #include "daemon/engine.hpp"
+#include "daemon/yara.hpp"
 #include <unistd.h>
+
+#include <yara.h>
 
 using namespace AV;
 
@@ -15,9 +18,9 @@ std::string Daemon::rulesPath = "/etc/antivirus/yara-rules/";
 
 void Daemon::Init()
 {
-    if (!std::filesystem::exists("/etc/antivirus"))
+    if (!std::filesystem::exists(PROGRAM_PATH))
     {
-        if (std::filesystem::create_directories("/etc/antivirus") == false)
+        if (std::filesystem::create_directories(PROGRAM_PATH) == false)
         {
             perror("create_directory");
             exit(1);
@@ -70,6 +73,12 @@ void Daemon::Init()
         perror("sigaction");
         exit(1);
     }
+
+    if (yr_initialize() != ERROR_SUCCESS)
+    {
+        perror("yr_initialize");
+        exit(1);
+    }
 }
 
 void Daemon::listen_socket()
@@ -110,6 +119,12 @@ void Daemon::listen_socket()
 
 void Daemon::hard_shutdown(int signum)
 {
+    if (yr_finalize() != ERROR_SUCCESS)
+    {
+        perror("yr_finalize");
+        exit(1);
+    }
+
     Logger::Log(Enums::LogLevel::INFO, "Daemon shutting down hard");
 
     for (auto thread : threads)
@@ -130,6 +145,12 @@ void Daemon::set_graceful_shutdown(int signum)
 
 void Daemon::graceful_shutdown()
 {
+    if (yr_finalize() != ERROR_SUCCESS)
+    {
+        perror("yr_finalize");
+        exit(1);
+    }
+
     Logger::Log(Enums::LogLevel::INFO, "Daemon shutting down gracefully");
     for (auto thread : threads)
     {
@@ -189,28 +210,32 @@ void Daemon::parse_settings(Settings settings, int fd)
         }
     }
     else
-    {
-        MalwareDB db("/etc/antivirus/signatures.db");
-        
+    { 
+
         if (settings.update)
         {
+            MalwareDB db("/etc/antivirus/signatures.db");
             db.update();
         }
 
         if (strlen(settings.signaturesPath) > 0)
         {
+            MalwareDB db("/etc/antivirus/signatures.db");
             db.load(settings.signaturesPath);
         }
         
         if (strlen(settings.yaraRulesPath) > 0 )
         {
             Daemon::rulesPath = settings.yaraRulesPath;
+            Yara::CompileRules(Daemon::rulesPath);
         }
 
         // TODO
         if (settings.scan)
-        {
-            Engine engine(settings.scanFile, Daemon::rulesPath, &db);
+        {   
+            // TODO spawn multiple threads
+
+            Engine engine(settings.scanFile, Daemon::rulesPath);
             engine.scan(settings.scanType);
         }
     }

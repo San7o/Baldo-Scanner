@@ -16,7 +16,7 @@ add_executable(daemon ${DAEMON_SOURCES})
 target_include_directories(daemon PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include )
 
-target_link_libraries(daemon pthread boost_program_options curl curlpp ssl crypto)
+target_link_libraries(daemon pthread boost_program_options curl curlpp ssl crypto yara)
 
 target_compile_options(daemon PRIVATE -Wall)
 

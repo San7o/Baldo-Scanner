@@ -13,7 +13,9 @@ pkgs.mkShell {
     curlFull                # libcurl
     curlpp                  # C++ wrapper for libcurl
     openssl_3_3             # libressl
+    yara                    # malware detection
+    sqlite                  # database
   ];
 
-  LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.boost}/lib:${pkgs.curlFull}/lib:${pkgs.curlpp}/lib:${pkgs.opensll_3_3}/lib";
+  LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.boost}/lib:${pkgs.curlFull}/lib:${pkgs.curlpp}/lib:${pkgs.openssl_3_3}/lib";
 }

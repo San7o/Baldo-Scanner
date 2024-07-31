@@ -1,5 +1,9 @@
 #pragma once
 
+#define SOCK_PATH "/tmp/av1"
+#define VERSION "1.0"
+#define PROGRAM_PATH "/etc/antivirus/"
+
 #include <iostream>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -13,9 +17,6 @@
 #include <filesystem>
 
 #include "common/settings.hpp"
-
-#define SOCK_PATH "/tmp/av1"
-#define VERSION "1.0"
 
 namespace AV
 {
