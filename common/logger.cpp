@@ -41,11 +41,6 @@ void Logger::Log(Enums::LogLevel level, std::string message)
 
         if (log_file != nullptr)
         {
-            time_t now = time(&now);
-            struct tm ltm;
-            localtime_r(&now, &ltm);
-            fprintf(log_file, "============%d/%d/%d-%d:%d==========\n",
-                            ltm.tm_year, ltm.tm_mon, ltm.tm_mday, ltm.tm_hour, ltm.tm_min);
             switch (level) {
                 case Enums::LogLevel::DEBUG:
                     fprintf(log_file, "DEBUG: ");
@@ -79,4 +74,9 @@ void Logger::SetLogFile(std::string path)
     {
         perror("fopen");
     }
+    time_t now = time(&now);
+    struct tm ltm;
+    localtime_r(&now, &ltm);
+    fprintf(log_file, "============%04d/%02d/%02d-%02d:%02d==========\n",
+        ltm.tm_year + 1900, ltm.tm_mon, ltm.tm_mday, ltm.tm_hour, ltm.tm_min);
 }

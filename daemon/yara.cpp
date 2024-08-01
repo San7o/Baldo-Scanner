@@ -87,7 +87,7 @@ void Yara::CompileRules(std::string yaraRulesPath)
 
 void Yara::LoadRules(std::string yaraRulesPath, YR_RULES** rules)
 {
-    Logger::Log(Enums::LogLevel::INFO, "Loading rules");
+    Logger::Log(Enums::LogLevel::DEBUG, "Loading rules");
     if (yr_rules_load("/etc/antivirus/compiled_rules.yar", rules) != ERROR_SUCCESS)
     {
         Logger::Log(Enums::LogLevel::ERROR, "Failed to load rules");
@@ -118,7 +118,7 @@ int Yara::callback_scan(YR_SCAN_CONTEXT* context, int message,
     }
     else if (message == CALLBACK_MSG_SCAN_FINISHED)
     {
-        Logger::Log(Enums::LogLevel::INFO, "Rules Scan finished");
+        Logger::Log(Enums::LogLevel::DEBUG, "Rules Scan finished");
     }
 
     return CALLBACK_CONTINUE;

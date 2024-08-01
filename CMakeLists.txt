@@ -11,14 +11,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 file(GLOB DAEMON_SOURCES "daemon/*.cpp" "daemon/**/*" "common/*.cpp")
 
-add_executable(daemon ${DAEMON_SOURCES})
+add_executable(av_daemon ${DAEMON_SOURCES})
 
-target_include_directories(daemon PUBLIC
+target_include_directories(av_daemon PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include )
 
-target_link_libraries(daemon pthread boost_program_options curl curlpp ssl crypto yara)
+target_link_libraries(av_daemon pthread boost_program_options curl curlpp ssl crypto yara)
 
-target_compile_options(daemon PRIVATE -Wall)
+target_compile_options(av_daemon PRIVATE -Wall)
 
 
 # cli ------------------------------------------------

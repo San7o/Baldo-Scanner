@@ -9,6 +9,12 @@
 namespace AV 
 {
 
+struct ScanRequest
+{
+    std::string filePath;
+    Enums::ScanType scanType;
+};
+
 class Engine
 {
 public:

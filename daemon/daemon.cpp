@@ -4,17 +4,28 @@
 #include "common/settings.hpp"
 #include "daemon/engine.hpp"
 #include "daemon/yara.hpp"
+
 #include <unistd.h>
+#include <thread>
+#include <asm/types.h>
+#include <filesystem>
 
 #include <yara.h>
+#include <linux/netlink.h>
 
 using namespace AV;
 
 int Daemon::fd;
+int Daemon::fd_kernel;
 std::vector<pthread_t> Daemon::threads = {};
-bool Daemon::shutdown = false;
+std::mutex Daemon::threads_mutex;
+bool Daemon::stop = false;
 std::string Daemon::version = VERSION;
 std::string Daemon::rulesPath = "/etc/antivirus/yara-rules/";
+std::mutex Daemon::rulesPath_mutex;
+int Daemon::available_threads;
+std::mutex Daemon::available_threads_mutex;
+const int Daemon::MAX_THREADS = std::thread::hardware_concurrency();
 
 void Daemon::Init()
 {
@@ -95,20 +106,23 @@ void Daemon::listen_socket()
         perror("accept");
     }
 
-    pthread_t thread;
-    pthread_attr_t attr;
-    if (pthread_attr_init(&attr) != 0)
-    {
-        perror("pthread_attr_init");
-    }
+    if (!Daemon::stop) {
 
-    if (!Daemon::shutdown) {
-        if (pthread_create(&thread, &attr, handle_connection, &new_fd) != 0)
+        pthread_t thread;
+        pthread_attr_t attr;
+        if (pthread_attr_init(&attr) != 0)
+        {
+            perror("pthread_attr_init");
+        }
+
+        if (pthread_create(&thread, &attr, thread_handle_connection, &new_fd) != 0)
         {
             perror("pthread_create");
             exit(1);
         }
+        Daemon::threads_mutex.lock();
         threads.push_back(thread);
+        Daemon::threads_mutex.unlock();
 
         if (pthread_attr_destroy(&attr))
         {
@@ -117,15 +131,43 @@ void Daemon::listen_socket()
     }
 }
 
+void Daemon::listen_kernel()
+{
+    pthread_t thread;
+    pthread_attr_t attr;
+    if (pthread_attr_init(&attr) != 0)
+    {
+        perror("pthread_attr_init");
+    }
+
+    if (pthread_create(&thread, &attr, thread_listen_kernel, NULL) != 0)
+    {
+        perror("pthread_create");
+        exit(1);
+    }
+    Daemon::threads_mutex.lock();
+    threads.push_back(thread);
+    Daemon::threads_mutex.unlock();
+
+    if (pthread_attr_destroy(&attr))
+    {
+        perror("pthread_attr_destroy");
+    }
+}
+
+
 void Daemon::hard_shutdown(int signum)
 {
+    Logger::Log(Enums::LogLevel::INFO, "Daemon shutting down hard");
+
     if (yr_finalize() != ERROR_SUCCESS)
     {
         perror("yr_finalize");
         exit(1);
     }
 
-    Logger::Log(Enums::LogLevel::INFO, "Daemon shutting down hard");
+    shutdown(fd_kernel, SHUT_RDWR);
+
 
     for (auto thread : threads)
     {
@@ -140,18 +182,22 @@ void Daemon::hard_shutdown(int signum)
 
 void Daemon::set_graceful_shutdown(int signum)
 {
-    Daemon::shutdown = true;
+    Daemon::stop = true;
 }
 
 void Daemon::graceful_shutdown()
 {
+    Logger::Log(Enums::LogLevel::INFO, "Daemon shutting down gracefully");
+
     if (yr_finalize() != ERROR_SUCCESS)
     {
         perror("yr_finalize");
         exit(1);
     }
 
-    Logger::Log(Enums::LogLevel::INFO, "Daemon shutting down gracefully");
+    shutdown(Daemon::fd_kernel, SHUT_RDWR);
+
+    Daemon::threads_mutex.lock();
     for (auto thread : threads)
     {
         if (pthread_join(thread, NULL) != 0)
@@ -160,10 +206,140 @@ void Daemon::graceful_shutdown()
             exit(1);
         }
     }
+    Daemon::threads_mutex.unlock();
+
     exit(0);
 }
 
-void *Daemon::handle_connection(void* arg)
+void Daemon::parse_settings(Settings settings, int fd)
+{
+    if (settings.quit)
+    {
+        graceful_shutdown();
+    }
+    else if (settings.version)
+    {
+        if (send(fd, "AV 1.0", 7, 0) == -1) {
+            perror("send");
+            pthread_exit(NULL);
+        }
+    }
+    else
+    { 
+        if (settings.update)
+        {
+            MalwareDB db("/etc/antivirus/signatures.db");
+            db.update();
+        }
+
+        if (strlen(settings.signaturesPath) > 0)
+        {
+            MalwareDB db("/etc/antivirus/signatures.db");
+            db.load(settings.signaturesPath);
+        }
+        
+        if (strlen(settings.yaraRulesPath) > 0 )
+        {
+            Daemon::rulesPath_mutex.lock();
+            Daemon::rulesPath = settings.yaraRulesPath;
+            Yara::CompileRules(Daemon::rulesPath);
+            Daemon::rulesPath_mutex.unlock();
+        }
+
+        if (settings.scan)
+        {   
+            scanFiles(settings.scanFile, settings.scanType);
+        }
+    }
+}
+
+void Daemon::scanFiles(std::string scanFile, Enums::ScanType scanType)
+{ 
+
+    if (!std::filesystem::exists(scanFile))
+    {
+        Logger::Log(Enums::LogLevel::ERROR, "File does not exist: " + scanFile);
+        return;
+    }
+
+    if (std::filesystem::is_directory(scanFile) == false)
+    {
+        ScanRequest* request = new ScanRequest{scanFile, scanType};
+        pthread_t thread;
+        pthread_attr_t attr;
+        if (pthread_attr_init(&attr) != 0)
+        {
+            perror("pthread_attr_init");
+        }
+
+        if (pthread_create(&thread, &attr, thread_scan, (void*) request) != 0)
+        {
+            perror("pthread_create");
+            exit(1);
+        }
+        return;
+    }
+
+    Daemon::available_threads_mutex.lock();
+    Daemon::threads_mutex.lock();
+
+    Daemon::available_threads = MAX_THREADS - 3;
+    if (Daemon::available_threads < 1)
+    {
+        Daemon::available_threads = 1;
+    }
+    
+    Daemon::threads_mutex.unlock();
+    Daemon::available_threads_mutex.unlock();
+
+    struct timespec tim;
+    tim.tv_sec = 0;
+    tim.tv_nsec = 1000000;
+
+    for (auto file : std::filesystem::recursive_directory_iterator(scanFile))
+    {
+        if (Daemon::stop) break;
+
+        if (std::filesystem::is_directory(file)) continue;
+
+        Daemon::available_threads_mutex.lock();
+        while(available_threads == 0)
+        {
+            Daemon::available_threads_mutex.unlock();
+            nanosleep(&tim, NULL);
+            Daemon::available_threads_mutex.lock();
+        }
+
+        ScanRequest* request = new ScanRequest{file.path(), scanType};
+        available_threads--;
+        
+        pthread_t thread;
+        pthread_attr_t attr;
+        if (pthread_attr_init(&attr) != 0)
+        {
+            perror("pthread_attr_init");
+        }
+
+        if (pthread_create(&thread, &attr, thread_scan, (void*) request) != 0)
+        {
+            perror("pthread_create");
+            exit(1);
+        }
+        
+        Daemon::available_threads_mutex.unlock();
+    }
+}
+
+void Daemon::close_fd(void* arg)
+{
+    int *fd = (int*) arg;
+    if (close(*fd) == -1)
+    {
+        perror("close");
+    }
+}
+
+void *Daemon::thread_handle_connection(void* arg)
 {
     int fd = *(int*) arg;
 
@@ -196,58 +372,76 @@ void *Daemon::handle_connection(void* arg)
     return NULL;
 }
 
-void Daemon::parse_settings(Settings settings, int fd)
+
+void *Daemon::thread_listen_kernel(void* arg)
 {
-    if (settings.quit)
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGTERM);
+    sigaddset(&set, SIGQUIT);
+    if (pthread_sigmask(SIG_SETMASK, &set, NULL) != 0)
     {
-        graceful_shutdown();
+        perror("pthread_sigmask");
+        exit(1);
     }
-    else if (settings.version)
+
+    Daemon::fd_kernel = socket(PF_NETLINK, SOCK_RAW, NETLINK_GENERIC);
+    if (fd_kernel == -1)
     {
-        if (send(fd, "AV 1.0", 7, 0) == -1) {
-            perror("send");
-            pthread_exit(NULL);
-        }
+        perror("netlink socket");
+        exit(1);
     }
-    else
-    { 
 
-        if (settings.update)
-        {
-            MalwareDB db("/etc/antivirus/signatures.db");
-            db.update();
-        }
+    pthread_cleanup_push(close_fd, &fd_kernel);
 
-        if (strlen(settings.signaturesPath) > 0)
-        {
-            MalwareDB db("/etc/antivirus/signatures.db");
-            db.load(settings.signaturesPath);
-        }
-        
-        if (strlen(settings.yaraRulesPath) > 0 )
-        {
-            Daemon::rulesPath = settings.yaraRulesPath;
-            Yara::CompileRules(Daemon::rulesPath);
-        }
-
-        // TODO
-        if (settings.scan)
-        {   
-            // TODO spawn multiple threads
-
-            Engine engine(settings.scanFile, Daemon::rulesPath);
-            engine.scan(settings.scanType);
-        }
+    struct sockaddr_nl src_addr;
+    memset(&src_addr, 0, sizeof(src_addr));  
+    src_addr.nl_family = AF_NETLINK;  
+    src_addr.nl_pid = getpid();
+    if (bind(fd_kernel, (struct sockaddr*)&src_addr, sizeof(src_addr)) == -1)
+    {
+        perror("bind");
+        pthread_exit(NULL);
     }
+
+    struct msghdr msg;
+    while(!Daemon::stop && (recvmsg(fd_kernel, &msg, 0) > 0))
+    {
+        Logger::Log(Enums::LogLevel::DEBUG, "Kernel message received");
+        // TODO: handle kernel message
+    }
+
+    pthread_cleanup_pop(1);
+    return NULL;
+
 }
 
-void Daemon::close_fd(void* arg)
+void Daemon::free_request(void* arg)
 {
-    int *fd = (int*) arg;
-    if (close(*fd) == -1)
-    {
-        perror("close");
-    }
+    ScanRequest* request = (ScanRequest*) arg;
+    delete request;
+}
+
+void *Daemon::thread_scan(void* arg)
+{
+    pthread_cleanup_push(free_request, arg);
+
+    ScanRequest* request = (ScanRequest*) arg;
+    Logger::Log(Enums::LogLevel::INFO, "Scanning file: " + request->filePath);
+
+    Daemon::rulesPath_mutex.lock();
+    Engine engine(request->filePath, Daemon::rulesPath);
+    Daemon::rulesPath_mutex.unlock();
+
+    engine.scan(request->scanType);
+
+    Daemon::available_threads_mutex.lock();
+    Daemon::available_threads++;
+    Daemon::available_threads_mutex.unlock();
+
+    pthread_cleanup_pop(1);
+    return NULL;
 }
 
 void Daemon::print_settings(Settings settings)

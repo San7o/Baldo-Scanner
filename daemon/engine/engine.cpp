@@ -128,7 +128,7 @@ void Engine::scanSignature()
     rc = sqlite3_prepare_v2(db.connection, query.c_str(), -1, &stmt, nullptr);
     check_sqlite_error(rc, db.connection);
 
-    Logger::Log(Enums::LogLevel::INFO, "Querying database for SHA");
+    Logger::Log(Enums::LogLevel::DEBUG, "Querying database for SHA");
     std::cout << std::flush;
 
     rc = sqlite3_exec(db.connection, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
@@ -137,7 +137,7 @@ void Engine::scanSignature()
     rc = sqlite3_bind_text(stmt, 1, sha_string.c_str(), -1, SQLITE_TRANSIENT);
     check_sqlite_error(rc, db.connection);
 
-    Logger::Log(Enums::LogLevel::INFO, "Executing query");
+    Logger::Log(Enums::LogLevel::DEBUG, "Executing query");
 
     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
     {
@@ -154,7 +154,7 @@ void Engine::scanSignature()
     rc = sqlite3_exec(db.connection, "END TRANSACTION;", nullptr, nullptr, nullptr);
     check_sqlite_error(rc, db.connection);
 
-    Logger::Log(Enums::LogLevel::INFO, "Query completed");
+    Logger::Log(Enums::LogLevel::DEBUG, "Query completed");
     sqlite3_finalize(stmt);
 }
 

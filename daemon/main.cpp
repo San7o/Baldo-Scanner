@@ -11,7 +11,9 @@ int main(int argc, char** argv)
     Logger::SetLogLevel(Enums::LogLevel::DEBUG);
     Logger::Log(Enums::LogLevel::INFO, "Daemon started");
 
-    while(!Daemon::shutdown)
+    Daemon::listen_kernel();
+
+    while(!Daemon::stop)
     {
         Daemon::listen_socket();
     }

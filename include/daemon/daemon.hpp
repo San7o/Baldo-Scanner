@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <filesystem>
+#include <mutex>
 
 #include "common/settings.hpp"
 
@@ -24,24 +25,35 @@ namespace AV
 class Daemon
 {
 public:
+    static const int MAX_THREADS;
     static int fd;
+    static int fd_kernel;
     static std::vector<pthread_t> threads;
-    static bool shutdown;
+    static std::mutex threads_mutex;
+    static bool stop;
     static std::string version;
     static std::string rulesPath;
+    static std::mutex rulesPath_mutex;
+    static int available_threads;
+    static std::mutex available_threads_mutex;
 
     Daemon() = delete;
 
     static void Init();
     static void listen_socket();
+    static void listen_kernel();
     static void graceful_shutdown();
 private:
     static void hard_shutdown(int signum);
     static void set_graceful_shutdown(int signum);
-    static void *handle_connection(void* arg);
+    static void *thread_handle_connection(void* arg);
+    static void *thread_listen_kernel(void* arg);
+    static void *thread_scan(void* arg);
     static void close_fd(void* arg);
+    static void free_request(void* arg);
     static void print_settings(Settings settings);
     static void parse_settings(Settings settings, int fd);
+    static void scanFiles(std::string scanFile, Enums::ScanType scanType);
 };
 
 }
