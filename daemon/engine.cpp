@@ -1,6 +1,7 @@
 #include "daemon/engine.hpp"
 #include "common/logger.hpp"
 #include "daemon/yara.hpp"
+#include "daemon/daemon.hpp"
 
 #include <openssl/ssl.h>
 #include <openssl/evp.h>
@@ -16,10 +17,9 @@
 
 using namespace AV;
 
-Engine::Engine(std::string filePath, std::string yaraRulesPath)
+Engine::Engine(std::string filePath)
 {
     this->filePath = filePath;
-    this->yaraRulesPath = yaraRulesPath;
 }
 
 void Engine::scan(Enums::ScanType scan_type)
@@ -160,6 +160,6 @@ void Engine::scanSignature()
 void Engine::scanYaraRules()
 {
     YR_RULES* rules;
-    Yara::LoadRules(this->yaraRulesPath, &rules);
+    Yara::LoadRules(RULES_PATH, &rules);
     Yara::Scan(rules, this->filePath);
 }

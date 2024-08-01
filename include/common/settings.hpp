@@ -20,6 +20,7 @@ struct Settings
 {
      Enums::ScanType scanType;
      bool quit;
+     bool force_quit;
      bool update;
      bool version;
      bool scan;

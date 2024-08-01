@@ -1,4 +1,5 @@
 #include "daemon/yara.hpp"
+#include "daemon/daemon.hpp"
 #include "common/logger.hpp"
 
 #include <filesystem>
@@ -73,7 +74,7 @@ void Yara::CompileRules(std::string yaraRulesPath)
         Logger::Log(Enums::LogLevel::ERROR, "Failed to get rules");
     }
 
-    if (yr_rules_save(rules, "/etc/antivirus/compiled_rules.yar") != 0)
+    if (yr_rules_save(rules, RULES_PATH) != 0)
     {
         Logger::Log(Enums::LogLevel::ERROR, "Failed to save compiled rules");
     }

@@ -3,6 +3,7 @@
 #define SOCK_PATH "/tmp/av1"
 #define VERSION "1.0"
 #define PROGRAM_PATH "/etc/antivirus/"
+#define RULES_PATH "/etc/antivirus/compiled_rules.yar"
 
 #include <iostream>
 #include <sys/types.h>
@@ -26,15 +27,14 @@ class Daemon
 {
 public:
     static const int MAX_THREADS;
+    static const std::string version;
+
     static int fd;
     static int fd_kernel;
+    static int available_threads;
+    static bool stop;
     static std::vector<pthread_t> threads;
     static std::mutex threads_mutex;
-    static bool stop;
-    static std::string version;
-    static std::string rulesPath;
-    static std::mutex rulesPath_mutex;
-    static int available_threads;
     static std::mutex available_threads_mutex;
 
     Daemon() = delete;
@@ -53,7 +53,8 @@ private:
     static void free_request(void* arg);
     static void print_settings(Settings settings);
     static void parse_settings(Settings settings, int fd);
-    static void scanFiles(std::string scanFile, Enums::ScanType scanType, bool multithread);
+    static void scanFiles(std::string scanFile,
+                    Enums::ScanType scanType, bool multithread);
 };
 
 }

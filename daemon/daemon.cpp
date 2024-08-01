@@ -15,17 +15,16 @@
 
 using namespace AV;
 
+const int Daemon::MAX_THREADS = std::thread::hardware_concurrency();
+const std::string Daemon::version = VERSION;
+
 int Daemon::fd;
 int Daemon::fd_kernel;
+int Daemon::available_threads;
+bool Daemon::stop = false;
 std::vector<pthread_t> Daemon::threads = {};
 std::mutex Daemon::threads_mutex;
-bool Daemon::stop = false;
-std::string Daemon::version = VERSION;
-std::string Daemon::rulesPath = "/etc/antivirus/yara-rules/";
-std::mutex Daemon::rulesPath_mutex;
-int Daemon::available_threads;
 std::mutex Daemon::available_threads_mutex;
-const int Daemon::MAX_THREADS = std::thread::hardware_concurrency();
 
 void Daemon::Init()
 {
@@ -155,7 +154,6 @@ void Daemon::listen_kernel()
     }
 }
 
-
 void Daemon::hard_shutdown(int signum)
 {
     Logger::Log(Enums::LogLevel::INFO, "Daemon shutting down hard");
@@ -217,9 +215,13 @@ void Daemon::parse_settings(Settings settings, int fd)
     {
         graceful_shutdown();
     }
+    if (settings.force_quit)
+    {
+        hard_shutdown(0);
+    }
     else if (settings.version)
     {
-        if (send(fd, "AV 1.0", 7, 0) == -1) {
+        if (send(fd, VERSION, 7, 0) == -1) {
             perror("send");
             pthread_exit(NULL);
         }
@@ -240,10 +242,7 @@ void Daemon::parse_settings(Settings settings, int fd)
         
         if (strlen(settings.yaraRulesPath) > 0 )
         {
-            Daemon::rulesPath_mutex.lock();
-            Daemon::rulesPath = settings.yaraRulesPath;
-            Yara::CompileRules(Daemon::rulesPath);
-            Daemon::rulesPath_mutex.unlock();
+            Yara::CompileRules(settings.yaraRulesPath);
         }
 
         if (settings.scan)
@@ -255,7 +254,6 @@ void Daemon::parse_settings(Settings settings, int fd)
 
 void Daemon::scanFiles(std::string scanFile, Enums::ScanType scanType, bool multithreaded)
 { 
-
     if (!std::filesystem::exists(scanFile))
     {
         Logger::Log(Enums::LogLevel::ERROR, "File does not exist: " + scanFile);
@@ -439,9 +437,7 @@ void *Daemon::thread_scan(void* arg)
     ScanRequest* request = (ScanRequest*) arg;
     Logger::Log(Enums::LogLevel::INFO, "Scanning file: " + request->filePath);
 
-    Daemon::rulesPath_mutex.lock();
-    Engine engine(request->filePath, Daemon::rulesPath);
-    Daemon::rulesPath_mutex.unlock();
+    Engine engine(request->filePath);
 
     engine.scan(request->scanType);
 

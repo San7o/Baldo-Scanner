@@ -19,9 +19,8 @@ class Engine
 {
 public:
     std::string filePath;
-    std::string yaraRulesPath;
 
-    Engine(std::string filePath, std::string yaraRulesPath);
+    Engine(std::string filePath);
 
     void scan(Enums::ScanType);
     void scanSignature();

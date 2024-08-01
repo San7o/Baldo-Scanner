@@ -15,6 +15,7 @@ Settings Cli::settings =
     false,
     false,
     false,
+    false,
     true,
     {},
     {},
@@ -45,11 +46,6 @@ void Cli::Init(int argc, char** argv)
         exit(1);
     }
 
-    /*
-    Logger::Log(Enums::LogLevel::DEBUG,
-                    "Size of settings: " + std::to_string(sizeof(Cli::settings)));
-    */
-
     if (send(fd, &Cli::settings, sizeof(Cli::settings), 0) == -1)
     {
         perror("send");
@@ -76,7 +72,8 @@ void Cli::ParseArgs(int argc, char** argv)
     po::options_description daemon_options("Daemon options");
     daemon_options.add_options()
         ("update,u", "update Malware signatures database")
-        ("quit,q", "quit daemon");
+        ("quit,q", "quit daemon gracefully")
+        ("force-quit,Q", "force quit daemon");
 
     po::options_description scan_options("Scan Options");
     scan_options.add_options()
@@ -102,6 +99,11 @@ void Cli::ParseArgs(int argc, char** argv)
     if (vm.count("quit"))
     {
         Cli::settings.quit = true;
+    }
+
+    if (vm.count("force-quit"))
+    {
+        Cli::settings.force_quit= true;
     }
 
     if (vm.count("version"))
