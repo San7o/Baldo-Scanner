@@ -15,6 +15,7 @@ Settings Cli::settings =
     false,
     false,
     false,
+    true,
     {},
     {},
     {}
@@ -82,7 +83,8 @@ void Cli::ParseArgs(int argc, char** argv)
         ("scan,s", po::value<std::string>(), "scan a file or directory")
         ("type,t", po::value<int>(), "type of scan: 0=signature 1=rules, 2=all[default]")
         ("load,l", po::value<std::string>(), "load signatures CSV")
-        ("yara-rules,y", po::value<std::string>(), "set directory of yara rules");
+        ("yara-rules,y", po::value<std::string>(), "set directory of yara rules")
+        ("no-multithread", "disable multithreading");
 
     po::options_description desc("Allowed options");
     desc.add(generic).add(daemon_options).add(scan_options);
@@ -105,6 +107,11 @@ void Cli::ParseArgs(int argc, char** argv)
     if (vm.count("version"))
     {
         Cli::settings.version = true;
+    }
+
+    if (vm.count("no-multithread"))
+    {
+        Cli::settings.multithread = false;
     }
 
     if (vm.count("yara-rules"))

@@ -23,6 +23,7 @@ struct Settings
      bool update;
      bool version;
      bool scan;
+     bool multithread;
      char scanFile[MAX_PATH];
      char yaraRulesPath[MAX_PATH];
      char signaturesPath[MAX_PATH];

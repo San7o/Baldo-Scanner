@@ -26,7 +26,6 @@ public:
     void scan(Enums::ScanType);
     void scanSignature();
     void scanYaraRules();
-    void stop();
 };
 
 }

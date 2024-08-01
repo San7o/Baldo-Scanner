@@ -248,12 +248,12 @@ void Daemon::parse_settings(Settings settings, int fd)
 
         if (settings.scan)
         {   
-            scanFiles(settings.scanFile, settings.scanType);
+            scanFiles(settings.scanFile, settings.scanType, settings.multithread);
         }
     }
 }
 
-void Daemon::scanFiles(std::string scanFile, Enums::ScanType scanType)
+void Daemon::scanFiles(std::string scanFile, Enums::ScanType scanType, bool multithreaded)
 { 
 
     if (!std::filesystem::exists(scanFile))
@@ -262,7 +262,7 @@ void Daemon::scanFiles(std::string scanFile, Enums::ScanType scanType)
         return;
     }
 
-    if (std::filesystem::is_directory(scanFile) == false)
+    if (!std::filesystem::is_directory(scanFile))
     {
         ScanRequest* request = new ScanRequest{scanFile, scanType};
         pthread_t thread;
@@ -281,15 +281,21 @@ void Daemon::scanFiles(std::string scanFile, Enums::ScanType scanType)
     }
 
     Daemon::available_threads_mutex.lock();
-    Daemon::threads_mutex.lock();
 
-    Daemon::available_threads = MAX_THREADS - 3;
-    if (Daemon::available_threads < 1)
+    if (!multithreaded)
     {
         Daemon::available_threads = 1;
     }
+    else
+    {
+        Daemon::available_threads = MAX_THREADS;
+
+        if (Daemon::available_threads < 1)
+        {
+            Daemon::available_threads = 1;
+        }
+    }
     
-    Daemon::threads_mutex.unlock();
     Daemon::available_threads_mutex.unlock();
 
     struct timespec tim;
@@ -325,6 +331,10 @@ void Daemon::scanFiles(std::string scanFile, Enums::ScanType scanType)
             perror("pthread_create");
             exit(1);
         }
+
+        Daemon::threads_mutex.lock();
+        threads.push_back(thread);
+        Daemon::threads_mutex.unlock();
         
         Daemon::available_threads_mutex.unlock();
     }
@@ -357,7 +367,7 @@ void *Daemon::thread_handle_connection(void* arg)
     }
 
     struct Settings settings;
-    if (recv(fd, &settings, 3080, 0) == -1)
+    if (recv(fd, &settings, sizeof(Settings), 0) == -1)
     {
         perror("recv");
         pthread_exit(NULL);
@@ -371,7 +381,6 @@ void *Daemon::thread_handle_connection(void* arg)
     pthread_cleanup_pop(1);
     return NULL;
 }
-
 
 void *Daemon::thread_listen_kernel(void* arg)
 {
@@ -453,6 +462,7 @@ void Daemon::print_settings(Settings settings)
     Logger::Log(LogLevel::DEBUG, "Update: "    + to_string(settings.update));
     Logger::Log(LogLevel::DEBUG, "Version: "   + to_string(settings.version));
     Logger::Log(LogLevel::DEBUG, "Quit: "      + to_string(settings.quit));
+    Logger::Log(LogLevel::DEBUG, "Multithread: " + to_string(settings.multithread));
     Logger::Log(LogLevel::DEBUG, "Scan file: " + string(settings.scanFile));
     Logger::Log(LogLevel::DEBUG, "Yara rules path: " + string(settings.yaraRulesPath));
     Logger::Log(LogLevel::DEBUG, "Signatures path: " + string(settings.signaturesPath));

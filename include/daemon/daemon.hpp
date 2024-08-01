@@ -53,7 +53,7 @@ private:
     static void free_request(void* arg);
     static void print_settings(Settings settings);
     static void parse_settings(Settings settings, int fd);
-    static void scanFiles(std::string scanFile, Enums::ScanType scanType);
+    static void scanFiles(std::string scanFile, Enums::ScanType scanType, bool multithread);
 };
 
 }

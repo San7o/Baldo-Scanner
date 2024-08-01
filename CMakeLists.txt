@@ -7,9 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 
-# daemon ---------------------------------------------
+# ================ daemon ================
 
-file(GLOB DAEMON_SOURCES "daemon/*.cpp" "daemon/**/*" "common/*.cpp")
+file(GLOB DAEMON_SOURCES "daemon/*.cpp" "daemon/*c" "common/*.cpp")
 
 add_executable(av_daemon ${DAEMON_SOURCES})
 
@@ -21,7 +21,7 @@ target_link_libraries(av_daemon pthread boost_program_options curl curlpp ssl cr
 target_compile_options(av_daemon PRIVATE -Wall)
 
 
-# cli ------------------------------------------------
+# ================ cli ================
 
 file(GLOB CLI_SOURCES "cli/*.cpp" "common/*.cpp")
 

@@ -97,7 +97,6 @@ void check_sqlite_error(int rc, sqlite3* db)
     }
 }
 
-// TODO move to class
 void Engine::scanSignature()
 {
     MalwareDB db("/etc/antivirus/signatures.db");
@@ -119,7 +118,7 @@ void Engine::scanSignature()
          ss << std::hex << std::setw(2) << std::setfill('0') << (int) md[i];
     }
     std::string sha_string(ss.str());
-    //std::cout << "The sha256 is: " << sha_string << std::endl;
+    Logger::Log(Enums::LogLevel::DEBUG, "SHA256: " + sha_string);
 
     // Query the database for the hash
     std::string query = "SELECT sha256_hash FROM signatures WHERE sha256_hash = ?;";
@@ -156,11 +155,6 @@ void Engine::scanSignature()
 
     Logger::Log(Enums::LogLevel::DEBUG, "Query completed");
     sqlite3_finalize(stmt);
-}
-
-void Engine::stop()
-{
-    // TODO
 }
 
 void Engine::scanYaraRules()
