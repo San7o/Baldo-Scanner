@@ -195,7 +195,6 @@ void Daemon::graceful_shutdown()
 
     shutdown(Daemon::fd_kernel, SHUT_RDWR);
 
-    Daemon::threads_mutex.lock();
     for (auto thread : threads)
     {
         if (pthread_join(thread, NULL) != 0)
@@ -204,7 +203,6 @@ void Daemon::graceful_shutdown()
             exit(1);
         }
     }
-    Daemon::threads_mutex.unlock();
 
     exit(0);
 }
@@ -230,13 +228,13 @@ void Daemon::parse_settings(Settings settings, int fd)
     { 
         if (settings.update)
         {
-            MalwareDB db("/etc/antivirus/signatures.db");
+            MalwareDB db(DB_PATH);
             db.update();
         }
 
         if (strlen(settings.signaturesPath) > 0)
         {
-            MalwareDB db("/etc/antivirus/signatures.db");
+            MalwareDB db(DB_PATH);
             db.load(settings.signaturesPath);
         }
         
@@ -247,12 +245,27 @@ void Daemon::parse_settings(Settings settings, int fd)
 
         if (settings.scan)
         {   
-            scanFiles(settings.scanFile, settings.scanType, settings.multithread);
+            scan_files(settings.scanFile, settings.scanType, settings.multithread);
         }
     }
 }
 
-void Daemon::scanFiles(std::string scanFile, Enums::ScanType scanType, bool multithreaded)
+void Daemon::produce_report(ScanReport* report)
+{
+    std::cout << std::flush;
+    if (report->report.length() > 0)
+    {
+        Logger::Log(Enums::LogLevel::REPORT, "MALWARE DETECTED\n" + report->report);
+    }
+    else
+    {
+        Logger::Log(Enums::LogLevel::REPORT, "No malware detected");
+    }
+
+    delete report;
+}
+
+void Daemon::scan_files(std::string scanFile, Enums::ScanType scanType, bool multithreaded)
 { 
     if (!std::filesystem::exists(scanFile))
     {
@@ -262,7 +275,9 @@ void Daemon::scanFiles(std::string scanFile, Enums::ScanType scanType, bool mult
 
     if (!std::filesystem::is_directory(scanFile))
     {
-        ScanRequest* request = new ScanRequest{scanFile, scanType};
+        ScanReport *report = new ScanReport{"", std::mutex()};
+        ScanRequest* request = new ScanRequest{scanFile, scanType, report};
+
         pthread_t thread;
         pthread_attr_t attr;
         if (pthread_attr_init(&attr) != 0)
@@ -275,6 +290,14 @@ void Daemon::scanFiles(std::string scanFile, Enums::ScanType scanType, bool mult
             perror("pthread_create");
             exit(1);
         }
+
+        if (pthread_join(thread, NULL) != 0)
+        {
+            perror("pthread_join");
+            exit(1);
+        }
+
+        produce_report(report);
         return;
     }
 
@@ -300,6 +323,9 @@ void Daemon::scanFiles(std::string scanFile, Enums::ScanType scanType, bool mult
     tim.tv_sec = 0;
     tim.tv_nsec = 1000000;
 
+    ScanReport *report = new ScanReport{"", std::mutex()};
+    std::vector<pthread_t> scan_threads;
+
     for (auto file : std::filesystem::recursive_directory_iterator(scanFile))
     {
         if (Daemon::stop) break;
@@ -314,7 +340,7 @@ void Daemon::scanFiles(std::string scanFile, Enums::ScanType scanType, bool mult
             Daemon::available_threads_mutex.lock();
         }
 
-        ScanRequest* request = new ScanRequest{file.path(), scanType};
+        ScanRequest* request = new ScanRequest{file.path(), scanType, report};
         available_threads--;
         
         pthread_t thread;
@@ -329,13 +355,21 @@ void Daemon::scanFiles(std::string scanFile, Enums::ScanType scanType, bool mult
             perror("pthread_create");
             exit(1);
         }
+        scan_threads.push_back(thread);
 
-        Daemon::threads_mutex.lock();
-        threads.push_back(thread);
-        Daemon::threads_mutex.unlock();
-        
         Daemon::available_threads_mutex.unlock();
     }
+
+    for (auto thread : scan_threads)
+    {
+        if (pthread_join(thread, NULL) != 0)
+        {
+            perror("pthread_join");
+            exit(1);
+        }
+    }
+
+    produce_report(report);
 }
 
 void Daemon::close_fd(void* arg)
@@ -435,9 +469,9 @@ void *Daemon::thread_scan(void* arg)
     pthread_cleanup_push(free_request, arg);
 
     ScanRequest* request = (ScanRequest*) arg;
-    Logger::Log(Enums::LogLevel::INFO, "Scanning file: " + request->filePath);
+    Logger::Log(Enums::LogLevel::OUT, "Scanning file: " + request->filePath);
 
-    Engine engine(request->filePath);
+    Engine engine(request->filePath, request->report);
 
     engine.scan(request->scanType);
 

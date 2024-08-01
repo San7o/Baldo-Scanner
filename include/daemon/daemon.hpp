@@ -4,6 +4,7 @@
 #define VERSION "1.0"
 #define PROGRAM_PATH "/etc/antivirus/"
 #define RULES_PATH "/etc/antivirus/compiled_rules.yar"
+#define DB_PATH "/etc/antivirus/signatures.db"
 
 #include <iostream>
 #include <sys/types.h>
@@ -19,6 +20,7 @@
 #include <mutex>
 
 #include "common/settings.hpp"
+#include "daemon/engine.hpp"
 
 namespace AV
 {
@@ -53,8 +55,9 @@ private:
     static void free_request(void* arg);
     static void print_settings(Settings settings);
     static void parse_settings(Settings settings, int fd);
-    static void scanFiles(std::string scanFile,
+    static void scan_files(std::string scanFile,
                     Enums::ScanType scanType, bool multithread);
+    static void produce_report(ScanReport* report);
 };
 
 }

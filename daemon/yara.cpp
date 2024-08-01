@@ -116,6 +116,12 @@ int Yara::callback_scan(YR_SCAN_CONTEXT* context, int message,
     {
         YR_RULE* rule = (YR_RULE*) message_data;
         Logger::Log(Enums::LogLevel::INFO, "Matched rule: " + std::string(rule->identifier));
+
+        // Generate Report
+        YaraUserData* data = (YaraUserData*) user_data;
+        data->report->append("Matched rule: " +
+                             std::string(rule->identifier) +
+                             " in file: " + data->path + "\n");
     }
     else if (message == CALLBACK_MSG_SCAN_FINISHED)
     {
@@ -125,10 +131,13 @@ int Yara::callback_scan(YR_SCAN_CONTEXT* context, int message,
     return CALLBACK_CONTINUE;
 }
 
-void Yara::Scan(YR_RULES* rules, std::string filePath)
+void Yara::Scan(YR_RULES* rules, std::string filePath, ScanReport* report)
 {
-    
-    int ret = yr_rules_scan_file(rules, filePath.c_str(), 0, callback_scan, NULL, 10);
+    YaraUserData* data = new YaraUserData();
+    data->path = filePath;
+    data->report = report;
+
+    int ret = yr_rules_scan_file(rules, filePath.c_str(), 0, callback_scan, (void*) data, 10);
     if (ret != ERROR_SUCCESS)
     {
         switch (ret)
@@ -156,4 +165,5 @@ void Yara::Scan(YR_RULES* rules, std::string filePath)
                 break;
         }
     }
+    delete data;
 }

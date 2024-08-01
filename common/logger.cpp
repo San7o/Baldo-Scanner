@@ -34,6 +34,12 @@ void Logger::Log(Enums::LogLevel level, std::string message)
             case Enums::LogLevel::ERROR:
                 std::cout << "ERROR: ";
                 break;
+            case Enums::LogLevel::OUT:
+                std::cout << "OUT: ";
+                break;
+            case Enums::LogLevel::REPORT:
+                std::cout << "REPORT: ";
+                break;
             default:
                 break;
         }
@@ -53,6 +59,12 @@ void Logger::Log(Enums::LogLevel level, std::string message)
                     break;
                 case Enums::LogLevel::ERROR:
                     fprintf(log_file, "ERROR: ");
+                    break;
+                case Enums::LogLevel::OUT:
+                    fprintf(log_file, "OUT: ");
+                    break;
+                case Enums::LogLevel::REPORT:
+                    fprintf(log_file, "REPORT: ");
                     break;
                 default:
                     break;

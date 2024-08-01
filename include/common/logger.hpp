@@ -15,7 +15,9 @@ enum class LogLevel
     DEBUG,
     INFO,
     WARN,
-    ERROR
+    ERROR,
+    OUT,
+    REPORT
 };
 
 }

@@ -17,9 +17,10 @@
 
 using namespace AV;
 
-Engine::Engine(std::string filePath)
+Engine::Engine(std::string filePath, ScanReport* report)
 {
     this->filePath = filePath;
+    this->report = report;
 }
 
 void Engine::scan(Enums::ScanType scan_type)
@@ -141,6 +142,26 @@ void Engine::scanSignature()
     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
     {
         Logger::Log(Enums::LogLevel::INFO, "Malware detected in file: " + this->filePath);
+
+        // Produce Report
+        const unsigned char* sha256_hash = sqlite3_column_text(stmt, 1);
+        const unsigned char* file_name   = sqlite3_column_text(stmt, 5);
+        const unsigned char* file_type_guess = sqlite3_column_text(stmt, 6);
+        const unsigned char* mime_type   = sqlite3_column_text(stmt, 7);
+        const unsigned char* signature   = sqlite3_column_text(stmt, 8);
+
+        this->report->append("Malware detected in file: " + this->filePath + "\n");
+        this->report->append("SHA256: ");
+        this->report->append(sha256_hash);
+        this->report->append("\nFile name: ");
+        this->report->append(file_name);
+        this->report->append("\nFile type guess: ");
+        this->report->append(file_type_guess);
+        this->report->append("\nMime type: ");
+        this->report->append(mime_type);
+        this->report->append("\nSignature: ");
+        this->report->append(signature);
+        this->report->append("\n");
     }
 
     if (rc != SQLITE_DONE)
@@ -161,5 +182,19 @@ void Engine::scanYaraRules()
 {
     YR_RULES* rules;
     Yara::LoadRules(RULES_PATH, &rules);
-    Yara::Scan(rules, this->filePath);
+    Yara::Scan(rules, this->filePath, this->report);
+}
+
+void ScanReport::append(std::string message)
+{
+    this->report_mutex.lock();
+    this->report += message;
+    this->report_mutex.unlock();
+}
+
+void ScanReport::append(const unsigned char* c)
+{
+    this->report_mutex.lock();
+    this->report += std::string(reinterpret_cast<const char*>(c));
+    this->report_mutex.unlock();
 }
