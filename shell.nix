@@ -15,6 +15,7 @@ pkgs.mkShell {
     openssl_3_3             # libressl
     yara                    # malware detection
     sqlite                  # database
+    unzip                   # zip file extraction
   ];
 
   LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.boost}/lib:${pkgs.curlFull}/lib:${pkgs.curlpp}/lib:${pkgs.openssl_3_3}/lib";

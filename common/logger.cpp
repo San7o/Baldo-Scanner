@@ -12,7 +12,8 @@ Enums::LogLevel Logger::log_level;
 void Logger::Init()
 {
     log_level = Enums::LogLevel::INFO;
-    auto path = std::filesystem::absolute("logs/log.txt");
+    
+    auto path = std::filesystem::absolute("/tmp/av-logs.txt");
     Logger::SetLogFile(path);
 }
 

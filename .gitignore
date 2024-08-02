@@ -2,3 +2,5 @@ build/
 logs/
 docs/
 lib/
+linux/
+*.img
