@@ -24,6 +24,7 @@ pkgs.mkShell {
     libelf
     openssl
     debootstrap
+    gdb
   ];
 
 }

@@ -5,6 +5,10 @@
 #include <linux/uaccess.h>  /* copy_to_user */
 #include <linux/kallsyms.h> /* kallsyms_lookup_name */
 #include <linux/kprobes.h>  /* kprobe */
+#include <linux/types.h>    /* umode_t */
+#include <asm/paravirt.h>   /* write_cr0, read_cr0 */
+
+#define MODULE_NAME "systable_hook"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Giovanni");
@@ -12,12 +16,13 @@ MODULE_DESCRIPTION("System call table hooking");
 
 /* Define the system call table */
 static unsigned long **sys_call_table;
+
 /* Define the prototype of the original open system call
  * `asmlinkage` tells the compiler that the function
  * should not expect to find any of its arguments in
  * registers (a common optimization), but only on the CPU's stack.
  * All system calls are marked with this. */
-asmlinkage long (*original_syscall_open)(const char __user*, int, umode_t);
+asmlinkage long (*original_syscall_openat)(int, const char __user*, int flags, umode_t mode);
 
 /* Define the kallsyms_lookup_name call */
 typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
@@ -26,12 +31,17 @@ static struct kprobe kp = {
     .symbol_name = "kallsyms_lookup_name"
 };
 
-/* Define the new hooked open system call */
-asmlinkage long hooked_open(const char __user* filename, int flags, umode_t mode) {
-     printk(KERN_INFO "Hooked open system call\n");
+asmlinkage long hooked_openat(int dfd, const char __user* filename, int flags, umode_t mode) {
+    printk(KERN_INFO "Hooked openat system call\n");
 
-     /* Call the original open system call */
-     return original_syscall_open(filename, flags, mode);
+    /* Call the original open system call */
+    return original_syscall_openat(dfd, filename, flags, mode);
+}
+
+
+static unsigned long __force_order;
+static inline void wr_cr0(unsigned long val) {
+    asm volatile("mov %0, %%cr0": "+r" (val), "+m"(__force_order));
 }
 
 static void disable_write_protection(void) {
@@ -49,17 +59,10 @@ static void disable_write_protection(void) {
      *        >>> bin(0x10000)
      *        >>> '0b10000000000000000'
      */
-    write_cr0(read_cr0() & (~0x10000));
-#elif defined(__arm__)
-    unsigned int sctlr;
-    asm volatile("MRC p15, 0, %0, c1, c0, 0" : "=r" (sctlr));
-    sctlr &= ~(1 << 16); // Clear the WP bit (bit 16)
-    asm volatile("MCR p15, 0, %0, c1, c0, 0" : : "r" (sctlr));
-#elif defined(__aarch64__)
-    unsigned long sctlr_el1;
-    asm volatile("MRS %0, SCTLR_EL1" : "=r" (sctlr_el1));
-    sctlr_el1 &= ~(1 << 16); // Clear the WP bit (bit 16)
-    asm volatile("MSR SCTLR_EL1, %0" : : "r" (sctlr_el1));
+    //wr_cr0(read_cr0() & (~0x10000));
+    unsigned long cr0 = read_cr0();
+    clear_bit(16, &cr0);
+    wr_cr0(cr0);
 #else
 #error "Unsupported architecture"
 #endif
@@ -67,23 +70,17 @@ static void disable_write_protection(void) {
 
 static void enable_write_protection(void) {
 #if defined(__x86_64__)
-    write_cr0(read_cr0() | 0x10000);
-#elif defined(__arm__)
-    unsigned int sctlr;
-    asm volatile("MRC p15, 0, %0, c1, c0, 0" : "=r" (sctlr));
-    sctlr |= (1 << 16); // Set the WP bit (bit 16)
-    asm volatile("MCR p15, 0, %0, c1, c0, 0" : : "r" (sctlr));
-#elif defined(__aarch64__)
-    unsigned long sctlr_el1;
-    asm volatile("MRS %0, SCTLR_EL1" : "=r" (sctlr_el1));
-    sctlr_el1 |= (1 << 16); // Set the WP bit (bit 16)
-    asm volatile("MSR SCTLR_EL1, %0" : : "r" (sctlr_el1));
+    //write_cr0(read_cr0() | 0x10000);
+    unsigned long cr0 = read_cr0();
+    set_bit(16, &cr0);
+    wr_cr0(cr0);
 #else
 #error "Unsupported architecture"
 #endif
 }
 
 static int __init hook_init(void) {
+
     printk(KERN_INFO "Hooking system call table\n");
 
     /* get the address of the kallsyms_lookup_name function
@@ -91,24 +88,32 @@ static int __init hook_init(void) {
      * probe point is determined by the kernel. So, now all
      * that's left to do is to register the probe, extract
      * the probepoint address and then unregister it*/
-    kallsyms_lookup_name_t kallsyms_lookup_name;
     register_kprobe(&kp);
-    kallsyms_lookup_name = (kallsyms_lookup_name_t) kp.addr;
+    kallsyms_lookup_name_t kallsyms_lookup_name = (kallsyms_lookup_name_t) kp.addr;
     unregister_kprobe(&kp);
+    if (!kallsyms_lookup_name) {
+        printk(KERN_ERR "Failed to get the address of kallsyms_lookup_name\n");
+        return -1;
+    }
 
     /* Get the address of the system call table */
     sys_call_table = (unsigned long **) kallsyms_lookup_name("sys_call_table");
+    if (!sys_call_table) {
+        printk(KERN_ERR "Failed to get the address of the system call table\n");
+        return -1;
+    }
+
+    /* __NR_open is the index of the open system call */
+    original_syscall_openat = (void *) sys_call_table[257];
+
+    printk(KERN_INFO "Original openat system call: %p\n", original_syscall_openat);
+    printk(KERN_INFO "Hooked openat system call: %p\n", hooked_openat);
 
     disable_write_protection();
-
-    /* __NR_open is the index of the open system call
-     * It is defined in /usr/include/asm/unistd_64.h (similare for 32-bit)
-     */
-    original_syscall_open = (void *) sys_call_table[__NR_open];
-
-    sys_call_table[__NR_open] = (unsigned long *) hooked_open;
-
+    sys_call_table[257] = (void *) hooked_openat;
     enable_write_protection();
+
+    printk(KERN_INFO "sys_call_table 257: %p\n", sys_call_table[257]);
 
     return 0;
 }
@@ -116,14 +121,11 @@ static int __init hook_init(void) {
 static void __exit hook_exit(void) {
 
     printk(KERN_INFO "Unhooking system call table\n");
+
     disable_write_protection();
-
-    sys_call_table[__NR_open] = (unsigned long *) original_syscall_open;
-
+    sys_call_table[257] = (unsigned long *) original_syscall_openat;
     enable_write_protection();
 }
 
 module_init(hook_init);
 module_exit(hook_exit);
-
-

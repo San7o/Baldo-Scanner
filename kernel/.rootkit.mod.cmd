@@ -1,0 +1,1 @@
+cmd_/home/lanto/Documents/linux-kernel-antivirus/kernel/rootkit.mod := printf '%s\n'   kernel/rootkit.o | awk '!x[$$0]++ { print("/home/lanto/Documents/linux-kernel-antivirus/"$$0) }' > /home/lanto/Documents/linux-kernel-antivirus/kernel/rootkit.mod
