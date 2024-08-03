@@ -1,5 +1,5 @@
 #obj-m +=kernel/hello.o 
-obj-m += kernel/av_kernel.o
+obj-m += kernel/av_systable.o
 PWD := $(CURDIR) 
 KVERSION = $(shell uname -r)
 
