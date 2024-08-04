@@ -8,7 +8,7 @@ int main(int argc, char** argv)
     Logger::Init();
     Daemon::Init();
 
-    Logger::SetLogLevel(Enums::LogLevel::OUT);
+    Logger::SetLogLevel(Enums::LogLevel::DEBUG);
     Logger::Log(Enums::LogLevel::INFO, "Daemon started");
 
     Daemon::listen_kernel();

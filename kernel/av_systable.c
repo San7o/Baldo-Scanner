@@ -1,3 +1,7 @@
+/*
+ *   NOTE: This method does not work anymore on newer kernels.
+ */
+
 #include <linux/module.h>   /* Needed by all modules */
 #include <linux/kernel.h>   /* printk() */
 #include <linux/init.h>     /* __init and __exit macros */

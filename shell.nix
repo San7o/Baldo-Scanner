@@ -16,7 +16,8 @@ pkgs.mkShell {
     yara                    # malware detection
     sqlite                  # database
     unzip                   # zip file extraction
+    libnl.dev               # netlink
   ];
 
-  LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.boost}/lib:${pkgs.curlFull}/lib:${pkgs.curlpp}/lib:${pkgs.openssl_3_3}/lib";
+  LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.boost}/lib:${pkgs.curlFull}/lib:${pkgs.curlpp}/lib:${pkgs.openssl_3_3}/lib:${pkgs.libnl.dev}/lib";
 }

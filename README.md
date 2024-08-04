@@ -40,6 +40,7 @@ Currently, the only supported platform is Linux.
 
 - `openssl3.3`
 
+- `libnl` 3.8.0
 
 On `NixOS`, run:
 ```bash
@@ -48,7 +49,7 @@ nix-shell
 
 On Ubuntu/debian:
 ```bash
-sudo apt install curl libboost1.81-dev libcurlpp-dev libyara-dev
+sudo apt install curl libboost1.81-dev libcurlpp-dev libyara-dev libnl-3-dev
 ```
 
 ## Building the project

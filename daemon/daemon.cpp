@@ -11,7 +11,18 @@
 #include <filesystem>
 
 #include <yara.h>
-#include <linux/netlink.h>
+#include <sys/socket.h>
+
+/* libnl */
+#include <netlink/netlink.h>
+#include <netlink/cache.h>
+#include <netlink/route/link.h>
+#include <netlink/genl/genl.h>
+#include <netlink/genl/ctrl.h>
+#include <netlink/msg.h>
+
+#define NETLINK_AV_GROUP 1 // Same as in the kernel module
+#define AV_FAMILY_NAME "AV_GENL"
 
 using namespace AV;
 
@@ -414,6 +425,36 @@ void *Daemon::thread_handle_connection(void* arg)
     return NULL;
 }
 
+void Daemon::free_nl_socket(void* arg)
+{
+    struct nl_sock *sk = (struct nl_sock*) arg;
+    nl_socket_free(sk);
+}
+
+void Daemon::free_nlmsg(void* arg)
+{
+    struct nl_msg *msg = (struct nl_msg*) arg;
+    nlmsg_free(msg);
+}
+
+/* kernel generic netlink commands */
+enum {
+    AV_UNSPEC_CMD,
+    AV_HELLO_CMD,   /* hello command,  requests connection */
+    AV_BYE_CMD,     /* bye command,    close connection */
+    AV_NOTIFY_CMD,  /* notify command, just send a payload */
+    __AV_MAX_CMD,
+};
+
+int Daemon::kernel_msg_callback(struct nl_msg *msg, void *arg) {
+    struct nlmsghdr *nlh = nlmsg_hdr(msg);
+    Logger::Log(Enums::LogLevel::DEBUG, "Received a message with type: " + std::to_string(nlh->nlmsg_type));
+
+    // TODO: handle the message
+
+    return NL_OK;
+}
+
 void *Daemon::thread_listen_kernel(void* arg)
 {
     sigset_t set;
@@ -427,35 +468,69 @@ void *Daemon::thread_listen_kernel(void* arg)
         exit(1);
     }
 
-    Daemon::fd_kernel = socket(PF_NETLINK, SOCK_RAW, NETLINK_GENERIC);
-    if (fd_kernel == -1)
+    /* create netlink socket */
+    struct nl_sock *sk;
+    sk = nl_socket_alloc();
+    if (!sk)
     {
-        perror("netlink socket");
-        exit(1);
-    }
-
-    pthread_cleanup_push(close_fd, &fd_kernel);
-
-    struct sockaddr_nl src_addr;
-    memset(&src_addr, 0, sizeof(src_addr));  
-    src_addr.nl_family = AF_NETLINK;  
-    src_addr.nl_pid = getpid();
-    if (bind(fd_kernel, (struct sockaddr*)&src_addr, sizeof(src_addr)) == -1)
-    {
-        perror("bind");
+        Logger::Log(Enums::LogLevel::ERROR, "nl_socket_alloc");
         pthread_exit(NULL);
     }
 
-    struct msghdr msg;
-    while(!Daemon::stop && (recvmsg(fd_kernel, &msg, 0) > 0))
+    pthread_cleanup_push(free_nl_socket, sk);
+
+    /* Connect to generic netlink socket */
+    int ret;
+    ret = genl_connect(sk);
+    if (ret < 0)
     {
-        Logger::Log(Enums::LogLevel::DEBUG, "Kernel message received");
-        // TODO: handle kernel message
+        nl_perror(ret, "genl_connect");
+        pthread_exit(NULL);
     }
 
+    /* Resolve the family ID */
+    int family_id;
+    family_id = genl_ctrl_resolve(sk, AV_FAMILY_NAME);
+    if (family_id < 0)
+    {
+        nl_perror(family_id, "genl_ctrl_resolve");
+        pthread_exit(NULL);
+    }
+
+    /* Allocate a new netlink message */
+    struct nl_msg *msg;
+    msg = nlmsg_alloc();
+    if (!msg)
+    {
+        Logger::Log(Enums::LogLevel::ERROR, "nlmsg_alloc");
+        pthread_exit(NULL);
+    }
+
+    pthread_cleanup_push(free_nlmsg, msg);
+
+    /* Construct the messge */
+    genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, family_id, 0, 0, AV_HELLO_CMD, 1);
+
+    /* Send the message */
+    ret = nl_send_auto(sk, msg);
+    if (ret < 0)
+    {
+        nl_perror(ret, "nl_send_auto");
+        pthread_exit(NULL);
+    }
+    Logger::Log(Enums::LogLevel::DEBUG, "Sent HELLO message to kernel");
+
+    /* Register the callback */
+    nl_socket_modify_cb(sk, NL_CB_VALID, NL_CB_CUSTOM, kernel_msg_callback, NULL);
+
+    /* Receive the message */
+    while (!Daemon::stop && (ret = nl_recvmsgs_default(sk)) >= 0);
+
+    // TODO: Send bye message to kernel
+
+    pthread_cleanup_pop(1);
     pthread_cleanup_pop(1);
     return NULL;
-
 }
 
 void Daemon::free_request(void* arg)

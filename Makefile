@@ -1,7 +1,6 @@
 #obj-m += kernel/hello.o 
-#obj-m += kernel/av_kprobe.o
+obj-m += kernel/av_kprobe.o
 #obj-m += kernel/av_systable.o
-obj-m += kernel/rootkit.o
 PWD := $(CURDIR) 
 KVERSION = $(shell uname -r)
 DEBUG_CFLAGS += -g -DDEBUG

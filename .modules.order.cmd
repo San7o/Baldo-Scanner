@@ -1,1 +1,0 @@
-cmd_/home/lanto/Documents/linux-kernel-antivirus/modules.order := {   echo /home/lanto/Documents/linux-kernel-antivirus/kernel/rootkit.ko; :; } > /home/lanto/Documents/linux-kernel-antivirus/modules.order

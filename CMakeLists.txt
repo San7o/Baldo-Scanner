@@ -16,7 +16,8 @@ add_executable(av_daemon ${DAEMON_SOURCES})
 target_include_directories(av_daemon PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include )
 
-target_link_libraries(av_daemon pthread boost_program_options curl curlpp ssl crypto yara)
+target_link_libraries(av_daemon pthread boost_program_options
+        curl curlpp ssl crypto yara nl-3 nl-genl-3)
 
 target_compile_options(av_daemon PRIVATE -Wall)
 

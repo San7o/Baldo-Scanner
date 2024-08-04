@@ -22,6 +22,8 @@
 #include "common/settings.hpp"
 #include "daemon/engine.hpp"
 
+#include <netlink/netlink.h>
+
 namespace AV
 {
 
@@ -86,11 +88,18 @@ static void graceful_shutdown();
 private:
 static void hard_shutdown(int signum);
 static void set_graceful_shutdown(int signum);
+/* callbacks */
+static int kernel_msg_callback(struct nl_msg *msg, void *arg);
+/* thread functions */
 static void *thread_handle_connection(void* arg);
 static void *thread_listen_kernel(void* arg);
 static void *thread_scan(void* arg);
+/* free functions */
 static void close_fd(void* arg);
 static void free_request(void* arg);
+static void free_nl_socket(void* arg);
+static void free_nlmsg(void* arg);
+/* Printing */
 static void print_settings(Settings settings);
 static void parse_settings(Settings settings, int fd);
 static void scan_files(std::string scanFile,
