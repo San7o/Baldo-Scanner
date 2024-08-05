@@ -7,19 +7,26 @@
 #include <sys/types.h>
 
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        printf("Usage: %s <file>\n", argv[0]);
-        return 1;
-    }
 
     // Use openat to open the file relative to AT_FDCWD (current directory)
-    int fd = syscall(SYS_openat, AT_FDCWD, argv[1], O_RDONLY);
+    const char* filename = "shell.nix";
+    int fd = syscall(SYS_openat, AT_FDCWD, filename, O_RDONLY);
     if (fd < 0) {
         perror("openat");
         return 1;
     }
 
-    printf("File opened\n");
+    int buff[10];
+    ssize_t ret = syscall(SYS_read, fd, buff, 10);
+    if (ret < 0) {
+        perror("read");
+        return 1;
+    }
+
+    if(write(STDOUT_FILENO, buff, ret) < 0) {
+        perror("write");
+        return 1;
+    }
 
     close(fd);
     return 0;

@@ -25,6 +25,7 @@ pkgs.mkShell {
     openssl
     debootstrap
     gdb
+    sphinx
   ];
 
 }

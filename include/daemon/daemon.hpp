@@ -71,10 +71,11 @@ static const int MAX_THREADS;
 /* The version of the daemon, defined in VERSION */
 static const std::string version;
 
-static int fd;
-static int fd_kernel;
-static int available_threads;
+static int  fd;
+static int  family_id;
+static int  available_threads;
 static bool stop;
+static struct nl_sock *sk;
 static std::vector<pthread_t> threads;
 static std::mutex threads_mutex;
 static std::mutex available_threads_mutex;
@@ -85,6 +86,8 @@ static void Init();
 static void listen_socket();
 static void listen_kernel();
 static void graceful_shutdown();
+static void stop_kernel_netlink();
+
 private:
 static void hard_shutdown(int signum);
 static void set_graceful_shutdown(int signum);
