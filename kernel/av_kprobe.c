@@ -4,13 +4,23 @@ int av_genl_hello(struct sk_buff *skb, struct genl_info *info) {
     printk(KERN_INFO "AV: Client HELLO\n");
     av_daemon_portid = (long unsigned int) info->snd_portid;
     av_daemon_net  = genl_info_net(info);
+    return 0;
+}
 
-    char *user_filename = "Rispondone\n";
-    /* Send a message using netlink */
+int av_genl_bye(struct sk_buff *skb, struct genl_info *info) {
+    printk(KERN_INFO "AV: Client BYE\n");
+    av_daemon_portid = 0;
+    return 0;
+}
+
+int av_genl_fetch(struct sk_buff *message_skb, struct genl_info *info) {
+    printk(KERN_INFO "AV: Client FETCH\n");
+
+    const char* user_filename = "Ciaone";
 
     /* 1)  Allocate a new skb */
     struct sk_buff *skb;
-    skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+    skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
     if (!skb) {
         printk(KERN_ERR "AV: Error creating skb\n");
         goto error;
@@ -35,27 +45,17 @@ int av_genl_hello(struct sk_buff *skb, struct genl_info *info) {
 
     /* 3) Send the message */
     //ret = genlmsg_multicast(&av_genl_family, skb, av_daemon_portid, NETLINK_AV_GROUP, GFP_KERNEL);
-    ret = genlmsg_unicast(av_daemon_net, skb, av_daemon_portid);
+    //ret = genlmsg_unicast(&init_net, skb, av_daemon_portid);
+    ret = genlmsg_reply(skb, info);
     if (ret < 0) {
         printk(KERN_ERR "AV: Error sending message\n");
         goto error;
     }
     //printk(KERN_INFO "AV: Sent filename=%s\n", filename);
-    printk(KERN_INFO "AV: Sent filename\n");
-
-
-
 
     return 0;
-
 error:
     return -1;
-}
-
-int av_genl_bye(struct sk_buff *skb, struct genl_info *info) {
-    printk(KERN_INFO "AV: Client BYE\n");
-    av_daemon_portid = 0;
-    return 0;
 }
 
 int av_getname_pre_handler(struct kprobe *p, struct pt_regs *regs) {
@@ -67,6 +67,35 @@ int av_getname_pre_handler(struct kprobe *p, struct pt_regs *regs) {
         //printk(KERN_ERR "AV: Daemon PID not set\n");
         return 0;
     }
+
+    /* Get the filename */
+    
+    const char __user* user_filename = (const char __user*) regs_get_kernel_argument(regs, 0);
+    if (!user_filename) {
+        printk(KERN_ERR "AV: Error getting filename\n");
+        return -1;
+    }
+    //TODO can be removed
+    if (!av_daemon_net) {
+        printk(KERN_ERR "AV: Error getting net\n");
+        return -1;
+    }
+    /*
+    char *filename = kmalloc(MAX_STRING_SIZE, GFP_KERNEL);
+    if (!filename) {
+        printk(KERN_ERR "AV: Error allocating filename\n");
+        return -1;
+    }
+    if (strncpy_from_user(filename, user_filename, MAX_STRING_SIZE) < 0) {
+        printk(KERN_ERR "AV: Error copying filename\n");
+        goto error;
+    }
+    filename[MAX_STRING_SIZE - 1] = '\0';
+    */
+    /* Send a message using netlink */
+
+    // TODO: save filename in datastructure
+
     //kfree(filename);
     return 0;
 error:
@@ -91,6 +120,7 @@ int __init av_init(void)
      * that's left to do is to register the probe, extract
      * the probepoint address and then unregister it*/
     /*
+    // TODO: test, might work
     register_kprobe(&kp_ln);
     kallsyms_lookup_name_t kallsyms_lookup_name = (kallsyms_lookup_name_t) kp_ln.addr;
     unregister_kprobe(&kp_ln);

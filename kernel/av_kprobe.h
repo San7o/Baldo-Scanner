@@ -54,12 +54,14 @@ static struct nla_policy av_genl_policy[AV_MAX + 1] = {
 /* Operation handlers */
 static int av_genl_hello(struct sk_buff *skb, struct genl_info *info);
 static int av_genl_bye(struct sk_buff *skb, struct genl_info *info);
+static int av_genl_fetch(struct sk_buff *skb, struct genl_info *info);
 
 /* Operation Commands */
 enum {
     AV_UNSPEC_CMD,
     AV_HELLO_CMD,   /* hello command,  requests connection */
     AV_BYE_CMD,     /* bye command,    close connection */
+    AV_FETCH_CMD,   /* fetch command,  fetch files */
     __AV_MAX_CMD,
 };
 #define AV_MAX_CMD (__AV_MAX_CMD - 1)
@@ -80,6 +82,13 @@ static struct genl_ops av_genl_ops[] = {
         .doit = av_genl_bye,
         .dumpit = NULL,
     },
+    {
+        .cmd = AV_FETCH_CMD,
+        .flags = 0,
+        .policy = av_genl_policy,
+        .doit = av_genl_fetch,
+        .dumpit = NULL,
+    },
 };
 
 /* Family definition: a family is a group of commands and
@@ -92,6 +101,7 @@ static struct genl_family av_genl_family = {
     .maxattr = AV_MAX,
     .ops = av_genl_ops,
     .n_ops = ARRAY_SIZE(av_genl_ops),
+    .parallel_ops = 1,
 };
 
 /* Debug function */

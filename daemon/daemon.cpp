@@ -40,6 +40,9 @@ std::mutex Daemon::available_threads_mutex;
 
 void Daemon::Init()
 {
+    Logger::Init();
+    Logger::Log(Enums::LogLevel::INFO, "Daemon starting");
+
     if (!std::filesystem::exists(PROGRAM_PATH))
     {
         if (std::filesystem::create_directories(PROGRAM_PATH) == false)
@@ -128,6 +131,8 @@ void Daemon::Init()
         nl_socket_free(sk);
         exit(1);
     }
+
+    Logger::Log(Enums::LogLevel::INFO, "Daemon started");
 }
 
 void Daemon::listen_socket()
@@ -481,6 +486,7 @@ enum {
     AV_UNSPEC_CMD,
     AV_HELLO_CMD,   /* hello command,  requests connection */
     AV_BYE_CMD,     /* bye command,    close connection */
+    AV_FETCH_CMD,   /* fetch command,  fetch files */
     __AV_MAX_CMD,
 };
 #define AV_MAX_CMD (__AV_MAX_CMD - 1)
@@ -507,16 +513,29 @@ int Daemon::kernel_msg_callback(struct nl_msg *msg, void *arg) {
         std::string message((char*) nla_data(attrs[AV_MSG]));
         Logger::Log(Enums::LogLevel::DEBUG, "Received message from kernel: " + message);
     }
-    else
-    {
-        Logger::Log(Enums::LogLevel::ERROR, "No message received from kernel");
-    }
 
     return NL_OK;
 }
 
 void Daemon::stop_kernel_netlink()
 {
+    /* create netlink socket */
+    struct nl_sock* bye_sk = nl_socket_alloc();
+    if (!bye_sk)
+    {
+        Logger::Log(Enums::LogLevel::ERROR, "nl_socket_alloc");
+        exit(1);
+    }
+
+    /* Connect to generic netlink socket */
+    int ret;
+    ret = genl_connect(bye_sk);
+    if (ret < 0)
+    {
+        nl_perror(ret, "genl_connect");
+        nl_socket_free(bye_sk);
+        exit(1);
+    }
     /* Allocate a new netlink message */
     struct nl_msg *msg;
     msg = nlmsg_alloc();
@@ -527,15 +546,20 @@ void Daemon::stop_kernel_netlink()
     }
 
     /* Send BYE message to kernel */
-    genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, family_id, 0, 0, AV_BYE_CMD, 1);
-    int ret = nl_send_auto(sk, msg);
+    if (!genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, family_id, 0, 0, AV_BYE_CMD, 1))
+    {
+        Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put");
+        return;
+    }
+    ret = nl_send_auto(bye_sk, msg);
     if (ret < 0)
     {
         nl_perror(ret, "nl_send_auto");
         return;
     }
+    nlmsg_free(msg);
+    free_nl_socket(bye_sk);
     Logger::Log(Enums::LogLevel::DEBUG, "Sent BYE message to kernel");
-    free_nlmsg(msg);
 }
 
 void *Daemon::thread_listen_kernel(void* arg)
@@ -591,13 +615,40 @@ void *Daemon::thread_listen_kernel(void* arg)
 
     /* Register the callback */
     nl_socket_modify_cb(sk, NL_CB_MSG_IN, NL_CB_CUSTOM, kernel_msg_callback, NULL);
+    nl_socket_set_nonblocking(sk);
 
     /* Receive the message on the default handler */
-    ret = nl_recvmsgs_default(sk);
-    if (ret < 0)
-    {
-        nl_perror(ret, "nl_recvmsgs_default");
-        pthread_exit(NULL);
+    while (Daemon::stop == false) {
+
+        /* send fetch message */
+
+        struct nl_msg *fetch_msg;
+        fetch_msg = nlmsg_alloc();
+        if (!fetch_msg)
+        {
+            Logger::Log(Enums::LogLevel::ERROR, "nlmsg_alloc in loop");
+            pthread_exit(NULL);
+        }
+
+        /* Construct the messge */
+        if (!genlmsg_put(fetch_msg, NL_AUTO_PID, NL_AUTO_SEQ, family_id, 0, 0, AV_FETCH_CMD, 1))
+        {
+            Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put in loop");
+            pthread_exit(NULL);
+        }
+
+        /* Send the message */
+        ret = nl_send_auto(sk, fetch_msg);
+        if (ret < 0)
+        {
+            nl_perror(ret, "nl_send_auto in loop");
+            pthread_exit(NULL);
+        }
+
+        nl_recvmsgs_default(sk);
+
+        sleep(1);
+        free_nlmsg(fetch_msg);
     }
 
     Logger::Log(Enums::LogLevel::DEBUG, "Received message from kernel");
