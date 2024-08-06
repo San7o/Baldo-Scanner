@@ -28,14 +28,15 @@ struct ScanRequest
 class Engine
 {
 public:
-    std::string filePath;
-    ScanReport* report;
 
-    Engine(std::string filePath, ScanReport* report);
+std::string filePath;
+ScanReport* report;
 
-    void scan(Enums::ScanType);
-    void scanSignature();
-    void scanYaraRules();
+Engine(std::string filePath, ScanReport* report);
+
+void scan(Enums::ScanType);
+void scanSignature();
+void scanYaraRules();
 };
 
 }

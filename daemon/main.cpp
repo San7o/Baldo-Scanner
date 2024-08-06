@@ -1,4 +1,5 @@
 #include "daemon/daemon.hpp"
+#include "daemon/kernel.hpp"
 #include "common/logger.hpp"
 
 using namespace AV;
@@ -9,7 +10,7 @@ int main(int argc, char** argv)
 
     Logger::SetLogLevel(Enums::LogLevel::DEBUG);
 
-    Daemon::listen_kernel();
+    Kernel::listen_kernel();
 
     while(!Daemon::stop)
     {

@@ -72,36 +72,29 @@ static const int MAX_THREADS;
 static const std::string version;
 
 static int  fd;
-static int  family_id;
 static int  available_threads;
 static bool stop;
-static struct nl_sock *sk;
 static std::vector<pthread_t> threads;
 static std::mutex threads_mutex;
 static std::mutex available_threads_mutex;
 
 Daemon() = delete;
 
+/* Methods */
+
 static void Init();
 static void listen_socket();
-static void listen_kernel();
 static void graceful_shutdown();
-static void stop_kernel_netlink();
+static void hard_shutdown(int signum);
 
 private:
-static void hard_shutdown(int signum);
 static void set_graceful_shutdown(int signum);
-/* callbacks */
-static int kernel_msg_callback(struct nl_msg *msg, void *arg);
 /* thread functions */
 static void *thread_handle_connection(void* arg);
-static void *thread_listen_kernel(void* arg);
 static void *thread_scan(void* arg);
 /* free functions */
 static void close_fd(void* arg);
 static void free_request(void* arg);
-static void free_nl_socket(void* arg);
-static void free_nlmsg(void* arg);
 /* Printing */
 static void print_settings(Settings settings);
 static void parse_settings(Settings settings, int fd);

@@ -4,6 +4,7 @@
 #include "common/settings.hpp"
 #include "daemon/engine.hpp"
 #include "daemon/yara.hpp"
+#include "daemon/kernel.hpp"
 
 #include <unistd.h>
 #include <thread>
@@ -14,27 +15,14 @@
 #include <yara.h>
 #include <sys/socket.h>
 
-/* libnl */
-#include <netlink/netlink.h>
-#include <netlink/cache.h>
-#include <netlink/route/link.h>
-#include <netlink/genl/genl.h>
-#include <netlink/genl/ctrl.h>
-#include <netlink/msg.h>
-
-#define NETLINK_AV_GROUP 1 // Same as in the kernel module
-#define AV_FAMILY_NAME "AV_GENL"
-
 using namespace AV;
 
 const int Daemon::MAX_THREADS = std::thread::hardware_concurrency();
 const std::string Daemon::version = VERSION;
 
 int Daemon::fd;
-int Daemon::family_id = -1;
 int Daemon::available_threads;
 bool Daemon::stop = false;
-struct nl_sock *Daemon::sk = NULL;
 std::vector<pthread_t> Daemon::threads = {};
 std::mutex Daemon::threads_mutex;
 std::mutex Daemon::available_threads_mutex;
@@ -106,32 +94,7 @@ void Daemon::Init()
         exit(1);
     }
 
-    /* create netlink socket */
-    sk = nl_socket_alloc();
-    if (!sk)
-    {
-        Logger::Log(Enums::LogLevel::ERROR, "nl_socket_alloc");
-        exit(1);
-    }
-
-    /* Connect to generic netlink socket */
-    int ret;
-    ret = genl_connect(sk);
-    if (ret < 0)
-    {
-        nl_perror(ret, "genl_connect");
-        nl_socket_free(sk);
-        exit(1);
-    }
-
-    /* Resolve the family ID */
-    family_id = genl_ctrl_resolve(sk, AV_FAMILY_NAME);
-    if (family_id < 0)
-    {
-        nl_perror(family_id, "genl_ctrl_resolve");
-        nl_socket_free(sk);
-        exit(1);
-    }
+    Kernel::Init();
 
     Logger::Log(Enums::LogLevel::INFO, "Daemon started");
 }
@@ -175,30 +138,6 @@ void Daemon::listen_socket()
     }
 }
 
-void Daemon::listen_kernel()
-{
-    pthread_t thread;
-    pthread_attr_t attr;
-    if (pthread_attr_init(&attr) != 0)
-    {
-        perror("pthread_attr_init");
-    }
-
-    if (pthread_create(&thread, &attr, thread_listen_kernel, NULL) != 0)
-    {
-        perror("pthread_create");
-        exit(1);
-    }
-    Daemon::threads_mutex.lock();
-    threads.push_back(thread);
-    Daemon::threads_mutex.unlock();
-
-    if (pthread_attr_destroy(&attr))
-    {
-        perror("pthread_attr_destroy");
-    }
-}
-
 void Daemon::hard_shutdown(int signum)
 {
     Logger::Log(Enums::LogLevel::INFO, "Daemon shutting down hard");
@@ -209,9 +148,7 @@ void Daemon::hard_shutdown(int signum)
         exit(1);
     }
 
-    stop_kernel_netlink();
-    free_nl_socket(Daemon::sk);
-    nl_close(Daemon::sk);
+    Kernel::stop_kernel_netlink();
 
     for (auto thread : threads)
     {
@@ -240,8 +177,7 @@ void Daemon::graceful_shutdown()
         exit(1);
     }
 
-    stop_kernel_netlink();
-    nl_close(Daemon::sk);
+    Kernel::stop_kernel_netlink();
 
     for (auto thread : threads)
     {
@@ -458,207 +394,6 @@ void *Daemon::thread_handle_connection(void* arg)
 
     parse_settings(settings, fd);
 
-    pthread_cleanup_pop(1);
-    return NULL;
-}
-
-void Daemon::free_nl_socket(void* arg)
-{
-    struct nl_sock *sk = (struct nl_sock*) arg;
-    nl_socket_free(sk);
-}
-
-void Daemon::free_nlmsg(void* arg)
-{
-    struct nl_msg *msg = (struct nl_msg*) arg;
-    nlmsg_free(msg);
-}
-
-/* Generic netlink attributes */
-enum {
-    AV_UNSPEC,
-    AV_MSG,   /* String message */
-    __AV_MAX,
-};
-#define AV_MAX (__AV_MAX - 1)
-
-/* kernel generic netlink commands */
-enum {
-    AV_UNSPEC_CMD,
-    AV_HELLO_CMD,   /* hello command,  requests connection */
-    AV_BYE_CMD,     /* bye command,    close connection */
-    AV_FETCH_CMD,   /* fetch command,  fetch files */
-    __AV_MAX_CMD,
-};
-#define AV_MAX_CMD (__AV_MAX_CMD - 1)
-
-int Daemon::kernel_msg_callback(struct nl_msg *msg, void *arg) {
-    struct nlmsghdr *nlh = nlmsg_hdr(msg);
-
-    struct nlattr *attrs[AV_MAX + 1];
-    if (nlh->nlmsg_type == NLMSG_ERROR)
-    {
-        struct nlmsgerr *err = (struct nlmsgerr*) nlmsg_data(nlh);
-        if (err->error < 0)
-        {
-            Logger::Log(Enums::LogLevel::ERROR, "Error in message");
-            return NL_STOP;
-        }
-    }
-
-    struct genlmsghdr *gnlh = (struct genlmsghdr*) nlmsg_data(nlh);
-    nla_parse(attrs, AV_MAX, genlmsg_attrdata(gnlh, 0),
-                    genlmsg_attrlen(gnlh, 0), NULL);
-    if (attrs[AV_MSG])
-    {
-        std::string message((char*) nla_data(attrs[AV_MSG]));
-        if (message == "") return NL_OK;
-        Logger::Log(Enums::LogLevel::DEBUG, "Received message from kernel: " + message);
-    }
-
-    return NL_OK;
-}
-
-void Daemon::stop_kernel_netlink()
-{
-    /* create netlink socket */
-    struct nl_sock* bye_sk = nl_socket_alloc();
-    if (!bye_sk)
-    {
-        Logger::Log(Enums::LogLevel::ERROR, "nl_socket_alloc");
-        exit(1);
-    }
-
-    /* Connect to generic netlink socket */
-    int ret;
-    ret = genl_connect(bye_sk);
-    if (ret < 0)
-    {
-        nl_perror(ret, "genl_connect");
-        nl_socket_free(bye_sk);
-        exit(1);
-    }
-    /* Allocate a new netlink message */
-    struct nl_msg *msg;
-    msg = nlmsg_alloc();
-    if (!msg)
-    {
-        Logger::Log(Enums::LogLevel::ERROR, "nlmsg_alloc");
-        return;
-    }
-
-    /* Send BYE message to kernel */
-    if (!genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, family_id, 0, 0, AV_BYE_CMD, 1))
-    {
-        Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put");
-        return;
-    }
-    ret = nl_send_auto(bye_sk, msg);
-    if (ret < 0)
-    {
-        nl_perror(ret, "nl_send_auto");
-        return;
-    }
-    nlmsg_free(msg);
-    free_nl_socket(bye_sk);
-    Logger::Log(Enums::LogLevel::DEBUG, "Sent BYE message to kernel");
-}
-
-void *Daemon::thread_listen_kernel(void* arg)
-{
-    sigset_t set;
-    sigemptyset(&set);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGTERM);
-    sigaddset(&set, SIGQUIT);
-    if (pthread_sigmask(SIG_SETMASK, &set, NULL) != 0)
-    {
-        perror("pthread_sigmask");
-        exit(1);
-    }
-
-    if (family_id < 0)
-    {
-        Logger::Log(Enums::LogLevel::ERROR, "Family ID not resolved");
-        pthread_exit(NULL);
-    }
-    if (!sk)
-    {
-        Logger::Log(Enums::LogLevel::ERROR, "Netlink socket not created");
-        pthread_exit(NULL);
-    }
-
-    /* Allocate a new netlink message */
-    struct nl_msg *msg;
-    msg = nlmsg_alloc();
-    if (!msg)
-    {
-        Logger::Log(Enums::LogLevel::ERROR, "nlmsg_alloc");
-        pthread_exit(NULL);
-    }
-
-    pthread_cleanup_push(free_nlmsg, msg);
-
-    /* Construct the messge */
-    if (!genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, family_id, 0, 0, AV_HELLO_CMD, 1))
-    {
-        Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put");
-        pthread_exit(NULL);
-    }
-
-    /* Send the message */
-    int ret = nl_send_auto(sk, msg);
-    if (ret < 0)
-    {
-        nl_perror(ret, "nl_send_auto");
-        pthread_exit(NULL);
-    }
-    Logger::Log(Enums::LogLevel::DEBUG, "Sent HELLO message to kernel");
-
-    /* Register the callback */
-    nl_socket_modify_cb(sk, NL_CB_MSG_IN, NL_CB_CUSTOM, kernel_msg_callback, NULL);
-    //nl_socket_set_nonblocking(sk);
-
-    struct timespec tim;
-    tim.tv_sec = 0;
-    tim.tv_nsec = 100000000;
-
-    /* Receive the message on the default handler */
-    while (!Daemon::stop) {
-
-        /* send fetch message */
-
-        struct nl_msg *fetch_msg;
-        fetch_msg = nlmsg_alloc();
-        if (!fetch_msg)
-        {
-            Logger::Log(Enums::LogLevel::ERROR, "nlmsg_alloc in loop");
-            pthread_exit(NULL);
-        }
-
-        /* Construct the messge */
-        if (!genlmsg_put(fetch_msg, NL_AUTO_PID, NL_AUTO_SEQ, family_id, 0, 0, AV_FETCH_CMD, 1))
-        {
-            Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put in loop");
-            pthread_exit(NULL);
-        }
-
-        /* Send the message */
-        ret = nl_send_auto(sk, fetch_msg);
-        if (ret < 0)
-        {
-            nl_perror(ret, "nl_send_auto in loop");
-            pthread_exit(NULL);
-        }
-
-        nl_recvmsgs_default(sk);
-
-        nanosleep(&tim, NULL);
-        free_nlmsg(fetch_msg);
-    }
-    Logger::Log(Enums::LogLevel::DEBUG, "Stopped listening to kernel messages");
-
-    free_nl_socket(Daemon::sk);
     pthread_cleanup_pop(1);
     return NULL;
 }
