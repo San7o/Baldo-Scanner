@@ -104,7 +104,10 @@ int av_getname_pre_handler(struct kprobe *p, struct pt_regs *regs) {
         goto error;
     }
     
+    char pid_c[10];
+    sprintf(pid_c, "%d ", current->pid);
     spin_lock(&av_data_lock);
+    strncat(call_pathname, pid_c, MAX_STRING_SIZE - strlen(call_pathname) - 1);
     strncat(call_pathname, filename, MAX_STRING_SIZE - strlen(call_pathname) - 1);
     strncat(call_pathname, "\n", MAX_STRING_SIZE - strlen(call_pathname) - 1);
     spin_unlock(&av_data_lock);
