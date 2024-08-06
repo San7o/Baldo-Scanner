@@ -9,6 +9,7 @@
 #include <thread>
 #include <asm/types.h>
 #include <filesystem>
+#include <sys/time.h>
 
 #include <yara.h>
 #include <sys/socket.h>
@@ -511,6 +512,7 @@ int Daemon::kernel_msg_callback(struct nl_msg *msg, void *arg) {
     if (attrs[AV_MSG])
     {
         std::string message((char*) nla_data(attrs[AV_MSG]));
+        if (message == "") return NL_OK;
         Logger::Log(Enums::LogLevel::DEBUG, "Received message from kernel: " + message);
     }
 
@@ -615,10 +617,14 @@ void *Daemon::thread_listen_kernel(void* arg)
 
     /* Register the callback */
     nl_socket_modify_cb(sk, NL_CB_MSG_IN, NL_CB_CUSTOM, kernel_msg_callback, NULL);
-    nl_socket_set_nonblocking(sk);
+    //nl_socket_set_nonblocking(sk);
+
+    struct timespec tim;
+    tim.tv_sec = 0;
+    tim.tv_nsec = 100000000;
 
     /* Receive the message on the default handler */
-    while (Daemon::stop == false) {
+    while (!Daemon::stop) {
 
         /* send fetch message */
 
@@ -647,11 +653,10 @@ void *Daemon::thread_listen_kernel(void* arg)
 
         nl_recvmsgs_default(sk);
 
-        sleep(1);
+        nanosleep(&tim, NULL);
         free_nlmsg(fetch_msg);
     }
-
-    Logger::Log(Enums::LogLevel::DEBUG, "Received message from kernel");
+    Logger::Log(Enums::LogLevel::DEBUG, "Stopped listening to kernel messages");
 
     free_nl_socket(Daemon::sk);
     pthread_cleanup_pop(1);

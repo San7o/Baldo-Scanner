@@ -8,6 +8,8 @@
 #include <linux/slab.h>        /* kmalloc */
 #include <uapi/asm/ptrace.h>   /* pt_regs for i386 */
 #include <linux/kallsyms.h>    /* kallsyms_lookup_name */
+#include <linux/spinlock.h>    /* spinlocks */
+#include <linux/string.h>
 
 /* Kprobe headers */
 #include <linux/kprobes.h>
@@ -26,11 +28,16 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Giovanni");
 MODULE_DESCRIPTION("Kprobe hook for the antivirus daemon");
 
-typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
+static DEFINE_SPINLOCK(av_ready_lock);
+static bool send_ready = false;
 
-/* The port ID of the antivirus daemon */
-static unsigned int av_daemon_portid = 0;
-static struct net *av_daemon_net = NULL;
+/* Spinlock protecting the variable to send
+ * Note that "spin_lock_irqsave" is used to disable
+ * interrupts while holding the lock, "spin_lock" does not. */
+static DEFINE_SPINLOCK(av_data_lock);
+static char call_pathname[MAX_STRING_SIZE] = {"\0"};
+
+typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
 
 /**
  * Here we are creating a family for the netlink communication,
@@ -101,7 +108,7 @@ static struct genl_family av_genl_family = {
     .maxattr = AV_MAX,
     .ops = av_genl_ops,
     .n_ops = ARRAY_SIZE(av_genl_ops),
-    .parallel_ops = 1,
+    .parallel_ops = 0,
 };
 
 /* Debug function */
