@@ -32,15 +32,21 @@ void Kernel::Init()
     if (Kernel::family_id < 0)
     {
         nl_perror(Kernel::family_id, "genl_ctrl_resolve");
+        Logger::Log(Enums::LogLevel::WARN, "Perhaps the kernel module is not loaded?");
         nl_socket_free(Kernel::sk);
-        exit(1);
     }
-
-    Logger::Log(Enums::LogLevel::DEBUG, "Kernel initialized");
+    else {
+        Logger::Log(Enums::LogLevel::DEBUG, "Kernel initialized");
+    }
 }
 
 void Kernel::listen_kernel()
 {
+    if (Kernel::family_id < 0)
+    {
+        return;
+    }
+
     pthread_t thread;
     pthread_attr_t attr;
     if (pthread_attr_init(&attr) != 0)
@@ -116,7 +122,7 @@ void *Kernel::thread_listen_kernel(void* arg)
 
     /* Register the callback */
     nl_socket_modify_cb(Kernel::sk, NL_CB_MSG_IN, NL_CB_CUSTOM, kernel_msg_callback, NULL);
-    //nl_socket_set_nonblocking(sk);
+    nl_socket_set_nonblocking(Kernel::sk);
 
     struct timespec tim;
     tim.tv_sec = 0;
@@ -194,6 +200,11 @@ int Kernel::kernel_msg_callback(struct nl_msg *msg, void *arg) {
 
 void Kernel::stop_kernel_netlink()
 {
+    if (Kernel::family_id < 0)
+    {
+        return;
+    }
+
     /* create netlink socket */
     struct nl_sock* bye_sk = nl_socket_alloc();
     if (!bye_sk)
