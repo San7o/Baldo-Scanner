@@ -8,9 +8,11 @@
 #include <netlink/route/link.h>
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
+#include <netlink/attr.h>
 #include <netlink/msg.h>
 
-namespace AV {
+namespace AV
+{
 
 /*
  * This file contains the code responsible
@@ -32,11 +34,13 @@ namespace AV {
  *                 information.
  * - AV_FETCH_CMD: fetches the information captured by the kernel.
  */
-enum {
-    AV_UNSPEC_CMD,  /* no specific message */
-    AV_HELLO_CMD,   /* start capturing     */
-    AV_BYE_CMD,     /* stop capturing      */
-    AV_FETCH_CMD,   /* fetch data          */
+enum
+{
+    AV_UNSPEC_CMD,    /* no specific message */
+    AV_HELLO_CMD,     /* start capturing     */
+    AV_BYE_CMD,       /* stop capturing      */
+    AV_FETCH_CMD,     /* fetch data          */
+    AV_SUBMIT_IP_CMD, /* submit an IP to block */
     __AV_MAX_CMD,
 };
 #define AV_MAX_CMD (__AV_MAX_CMD - 1) /* Max value of the enum */
@@ -48,15 +52,18 @@ enum {
  * Attributes are sent as payload to a message and
  * a command.
  */
-enum {
+enum
+{
     AV_UNSPEC,
     AV_MSG,   /* String message */
+    AV_IPv4,  /* IPv4 address, u32 */
     __AV_MAX,
 };
 #define AV_MAX (__AV_MAX - 1) /* Max value of the enum */
 
 /* Kernel related functions */
-class Kernel {
+class Kernel
+{
 public:
 
 Kernel() = delete; /* Singleton */
@@ -76,6 +83,12 @@ static int family_id;
  */
 static void Init();
 
+/* 
+ * Send an ip to the kerenl. This will be added to a
+ * table of blocked ips. The kernel will block any
+ * packet from that ip.
+ */
+static void send_ip_to_block(uint32_t ipv4);
 /* 
  * Create a new thread with `thread_listen_kernel`
  */

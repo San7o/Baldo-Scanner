@@ -4,6 +4,9 @@
 #include <iostream>
 #include <sys/socket.h>
 #include <cerrno>
+#include <cstdint>
+#include <arpa/inet.h>
+
 
 using namespace AV;
 namespace po = boost::program_options;
@@ -11,6 +14,7 @@ namespace po = boost::program_options;
 Settings Cli::settings = 
 {
     Enums::ScanType::ALL,
+    Enums::IpAction::NO_ACTION,
     false,
     false,
     false,
@@ -19,7 +23,8 @@ Settings Cli::settings =
     true,
     {},
     {},
-    {}
+    {},
+    0,
 };
 
 void Cli::Init(int argc, char** argv)
@@ -83,8 +88,16 @@ void Cli::ParseArgs(int argc, char** argv)
         ("yara-rules,y", po::value<std::string>(), "set directory of yara rules")
         ("no-multithread", "disable multithreading");
 
+    po::options_description firewall_options("Firewall options");
+    firewall_options.add_options()
+        ("block-ip,b", po::value<std::string>(), "block an IPv4 address")
+        ("unblock-ip,u", po::value<std::string>(), "unblock an IPv4 address");
+
     po::options_description desc("Allowed options");
-    desc.add(generic).add(daemon_options).add(scan_options);
+    desc.add(generic)
+            .add(daemon_options)
+            .add(scan_options)
+            .add(firewall_options);
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -145,6 +158,20 @@ void Cli::ParseArgs(int argc, char** argv)
             perror("strcpy");
             exit(1);
         }
+    }
+
+    if (vm.count("block-ip"))
+    {
+        std::string ip = vm["block-ip"].as<std::string>();
+        Cli::settings.ip = inet_addr(ip.c_str()); /* Network byte order */
+        Cli::settings.ipAction = Enums::IpAction::BLOCK;
+    }
+
+    if (vm.count("unblock-ip"))
+    {
+        std::string ip = vm["unblock-ip"].as<std::string>();
+        Cli::settings.ip = inet_addr(ip.c_str()); /* Network byte order */
+        Cli::settings.ipAction = Enums::IpAction::UNBLOCK;
     }
 
     if (vm.count("type"))

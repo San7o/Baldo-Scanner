@@ -2,8 +2,6 @@
 #define MAX_PATH 1024
 #define IPv4_LEN 10
 
-#include <cstdint>
-
 namespace AV
 {
 
@@ -17,19 +15,11 @@ enum class ScanType
     ALL
 };
 
-enum class IpAction
-{
-    NO_ACTION = 0,
-    BLOCK,
-    UNBLOCK,
-};
-
 } // namespace Enums
 
 struct Settings
 {
      Enums::ScanType scanType;
-     Enums::IpAction ipAction;
      bool quit;
      bool force_quit;
      bool update;
@@ -40,6 +30,7 @@ struct Settings
      char yaraRulesPath[MAX_PATH];
      char signaturesPath[MAX_PATH];
      uint32_t ip;
+     bool blockIp;  /* Block or unblock */
 };
 
 } // namespace AV

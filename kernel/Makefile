@@ -1,5 +1,5 @@
-obj-m   += av_main.o
-av_main-objs := av_netlink.o av_kprobe.o
+obj-m   += av.o
+av-objs := av_netlink.o av_kprobe.o av_firewall.o av_main.o av_common.o
 
 PWD := $(CURDIR) 
 KVERSION = $(shell uname -r)

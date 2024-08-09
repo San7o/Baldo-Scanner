@@ -210,6 +210,12 @@ void Daemon::parse_settings(Settings settings, int fd)
     }
     else
     { 
+        if (settings.ipAction != Enums::IpAction::NO_ACTION)
+        {
+            Kernel::send_ip_to_block(settings.ip);
+            Logger::Log(Enums::LogLevel::INFO, "Sent IP to block: " + std::to_string(settings.ip));
+        }
+
         if (settings.update)
         {
             MalwareDB db(DB_PATH);

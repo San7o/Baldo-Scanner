@@ -35,9 +35,7 @@ int av_getname_pre_handler(struct kprobe *p, struct pt_regs *regs);
  * Symbol names are found in System.map 
  * linux/kprobes.h
  */
-static struct kprobe kp = {
-    .pre_handler = av_getname_pre_handler,
-};
+extern struct kprobe kp;
 
 /* Debug function */
 /*

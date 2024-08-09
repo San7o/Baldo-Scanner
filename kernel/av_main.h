@@ -10,11 +10,12 @@
 #include <linux/kallsyms.h>    /* kallsyms_lookup_name */
 #include <linux/spinlock.h>    /* spinlocks */
 #include <linux/string.h>
+#include <linux/slab.h>
+#include <linux/netfilter.h>
+#include <linux/netfilter_ipv4.h>
+#include <linux/ip.h>
 
-static int __init av_init(void);
-static void __exit av_exit(void);
-
-module_init(av_init);
-module_exit(av_exit);
+int __init av_init(void);
+void __exit av_exit(void);
 
 #endif

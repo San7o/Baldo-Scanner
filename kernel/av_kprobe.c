@@ -1,6 +1,10 @@
 #include "av_kprobe.h"
 #include "av_common.h"
 
+struct kprobe kp = {
+    .pre_handler = av_getname_pre_handler,
+};
+
 int av_getname_pre_handler(struct kprobe *p, struct pt_regs *regs) {
 
     //printk(KERN_INFO "AV: getname called");
@@ -37,9 +41,11 @@ int av_getname_pre_handler(struct kprobe *p, struct pt_regs *regs) {
     strncat(call_pathname, "\n", MAX_STRING_SIZE - strlen(call_pathname) - 1);
     spin_unlock(&av_data_lock);
 
-    printk(KERN_INFO "Called openat with: %s", filename);
+    //printk(KERN_INFO "Called openat with: %s", filename);
 
     return 0;
 error:
     return -1;
 }
+
+MODULE_LICENSE("GPL");

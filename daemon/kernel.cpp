@@ -69,6 +69,68 @@ void Kernel::listen_kernel()
     }
 }
 
+void Kernel::send_ip_to_block(uint32_t ipv4)
+{
+    if (Kernel::family_id < 0)
+    {
+        return;
+    }
+
+    /* create netlink socket */
+    struct nl_sock* bye_sk = nl_socket_alloc();
+    if (!bye_sk)
+    {
+        Logger::Log(Enums::LogLevel::ERROR, "nl_socket_alloc");
+        exit(1);
+    }
+
+    /* Connect to generic netlink socket */
+    int ret;
+    ret = genl_connect(bye_sk);
+    if (ret < 0)
+    {
+        nl_perror(ret, "genl_connect");
+        nl_socket_free(bye_sk);
+        exit(1);
+    }
+    /* Allocate a new netlink message */
+    struct nl_msg *msg;
+    msg = nlmsg_alloc();
+    if (!msg)
+    {
+        Logger::Log(Enums::LogLevel::ERROR, "nlmsg_alloc");
+        return;
+    }
+    
+    /* Send BYE message to kernel */
+    if (!genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ,
+                            Kernel::family_id, 0, 0, AV_SUBMIT_IP_CMD, 1))
+    {
+        Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put");
+        return;
+    }
+
+    /* Sending the IP */
+    NLA_PUT_U32(msg, AV_IPv4, ipv4);
+
+    ret = nl_send_auto(bye_sk, msg);
+    if (ret < 0)
+    {
+        nl_perror(ret, "nl_send_auto");
+        return;
+    }
+    nlmsg_free(msg);
+    free_nl_socket(bye_sk);
+    Logger::Log(Enums::LogLevel::DEBUG, "Sent IP " + std::to_string(ipv4) + " to kernel");
+    return;
+
+nla_put_failure:
+    nlmsg_free(msg);
+    free_nl_socket(bye_sk);
+    Logger::Log(Enums::LogLevel::ERROR, "nla_put_failure");
+    return;
+}
+
 void *Kernel::thread_listen_kernel(void* arg)
 {
     sigset_t set;
