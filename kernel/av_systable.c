@@ -36,7 +36,8 @@ static struct kprobe kp = {
     .symbol_name = "kallsyms_lookup_name"
 };
 
-asmlinkage long hooked_openat(int dfd, const char __user* filename, int flags, umode_t mode) {
+asmlinkage long hooked_openat(int dfd, const char __user* filename, int flags, umode_t mode)
+{
     printk(KERN_INFO "Hooked openat system call\n");
 
     /* Call the original open system call */
@@ -45,11 +46,13 @@ asmlinkage long hooked_openat(int dfd, const char __user* filename, int flags, u
 
 
 static unsigned long __force_order;
-static inline void wr_cr0(unsigned long val) {
+static inline void wr_cr0(unsigned long val)
+{
     asm volatile("mov %0, %%cr0": "+r" (val), "+m"(__force_order));
 }
 
-static void disable_write_protection(void) {
+static void disable_write_protection(void)
+{
 #if defined(__x86_64__)
     /*
      * Control Register 0 (CR0) Bit 16 (WP) Write Protect (R/W)
@@ -73,7 +76,8 @@ static void disable_write_protection(void) {
 #endif
 }
 
-static void enable_write_protection(void) {
+static void enable_write_protection(void)
+{
 #if defined(__x86_64__)
     //write_cr0(read_cr0() | 0x10000);
     unsigned long cr0 = read_cr0();
@@ -84,8 +88,8 @@ static void enable_write_protection(void) {
 #endif
 }
 
-static int __init hook_init(void) {
-
+static int __init hook_init(void)
+{
     printk(KERN_INFO "Hooking system call table\n");
 
     /* get the address of the kallsyms_lookup_name function
@@ -96,14 +100,16 @@ static int __init hook_init(void) {
     register_kprobe(&kp);
     kallsyms_lookup_name_t kallsyms_lookup_name = (kallsyms_lookup_name_t) kp.addr;
     unregister_kprobe(&kp);
-    if (!kallsyms_lookup_name) {
+    if (!kallsyms_lookup_name)
+    {
         printk(KERN_ERR "Failed to get the address of kallsyms_lookup_name\n");
         return -1;
     }
 
     /* Get the address of the system call table */
     sys_call_table = (unsigned long **) kallsyms_lookup_name("sys_call_table");
-    if (!sys_call_table) {
+    if (!sys_call_table)
+    {
         printk(KERN_ERR "Failed to get the address of the system call table\n");
         return -1;
     }
@@ -123,8 +129,8 @@ static int __init hook_init(void) {
     return 0;
 }
 
-static void __exit hook_exit(void) {
-
+static void __exit hook_exit(void)
+{
     printk(KERN_INFO "Unhooking system call table\n");
 
     disable_write_protection();

@@ -16,14 +16,16 @@ int __init av_init(void)
     /* Register kprobe */
     int ret;
     kp.symbol_name = "do_sys_open";
-    if ((ret = register_kprobe(&kp)) < 0) {
+    if ((ret = register_kprobe(&kp)) < 0)
+    {
         printk(KERN_INFO "AV: register_kprobe failed, returned %d\n", ret);
         return -1;
     }
     
     /* Register a family */
     ret = genl_register_family(&av_genl_family);
-    if (ret) {
+    if (ret)
+    {
         printk(KERN_ERR "AV: Error registering family\n");
         return -1;
     }
@@ -48,7 +50,8 @@ void __exit av_exit(void)
     /* Remove all entries from the hashtable */
     struct ip_entry *entry;
     int bkt;
-    hash_for_each_rcu(av_blocked, bkt, entry, node) {
+    hash_for_each_rcu(av_blocked, bkt, entry, node)
+    {
         hash_del_rcu(&entry->node);
         kfree(entry);
     }
