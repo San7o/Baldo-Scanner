@@ -1,1 +1,0 @@
-cmd_/home/lanto/Documents/linux-kernel-antivirus/kernel/av_kprobe.mod := printf '%s\n'   kernel/av_kprobe.o | awk '!x[$$0]++ { print("/home/lanto/Documents/linux-kernel-antivirus/"$$0) }' > /home/lanto/Documents/linux-kernel-antivirus/kernel/av_kprobe.mod

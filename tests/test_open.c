@@ -10,9 +10,9 @@ int main(int argc, char **argv) {
 
     // Use openat to open the file relative to AT_FDCWD (current directory)
     const char* filename = "shell.nix";
-    int fd = syscall(SYS_openat, AT_FDCWD, filename, O_RDONLY);
+    int fd = syscall(SYS_open, filename, O_RDONLY, 0666);
     if (fd < 0) {
-        perror("openat");
+        perror("open");
         return 1;
     }
 

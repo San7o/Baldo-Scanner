@@ -246,7 +246,6 @@ void Kernel::stop_kernel_netlink()
     nlmsg_free(msg);
     free_nl_socket(bye_sk);
     nl_close(Kernel::sk);
-    free_nl_socket(Kernel::sk);
     Logger::Log(Enums::LogLevel::DEBUG, "Sent BYE message to kernel");
 }
 

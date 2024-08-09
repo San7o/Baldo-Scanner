@@ -1,5 +1,5 @@
-#ifndef AV_KPROBE_H
-#define AV_KPROBE_H
+#ifndef _AV_KPROBE_H
+#define _AV_KPROBE_H
 
 /* Kernel headers */
 #include <linux/kernel.h>
@@ -14,101 +14,29 @@
 /* Kprobe headers */
 #include <linux/kprobes.h>
 
-/* Netlink headers */
-#include <linux/netlink.h>     /* netlink_kernel_create, netlink_kernel_release */
-#include <net/genetlink.h>     /* genl_register_family */
-#include <net/netlink.h>       /* nla_put_string */
-
-#define MODULE_NAME "av_kprobe"
-#define NETLINK_AV_GROUP 31
-#define MAX_STRING_SIZE 1024
-#define AV_FAMILY_NAME "AV_GENL"
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Giovanni");
-MODULE_DESCRIPTION("Kprobe hook for the antivirus daemon");
-
-static DEFINE_SPINLOCK(av_ready_lock);
-static bool send_ready = false;
-
-/* Spinlock protecting the variable to send
- * Note that "spin_lock_irqsave" is used to disable
- * interrupts while holding the lock, "spin_lock" does not. */
-static DEFINE_SPINLOCK(av_data_lock);
-static char call_pathname[MAX_STRING_SIZE] = {"\0"};
-
-typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
-
-/**
- * Here we are creating a family for the netlink communication,
- * we will be able to send predefined commands to the kernel module
- * from the user space.
+/* 
+ * arch/x86/enty/calling.h
+ * x86 function call convention, 64-bit:
+ * -------------------------------------
+ *  arguments           |  callee-saved      | extra caller-saved | return
+ * [callee-clobbered]   |                    | [callee-clobbered] |
+ * ---------------------------------------------------------------------------
+ * rdi rsi rdx rcx r8-9 | rbx rbp [*] r12-15 | r10-11             | rax, rdx [**]
+ *
+ * This function gets called when the kprobe is hit.
+ *
+ * `pt_regs` is defined based on your architecture
+ * x86 is defined in "arch/x86/include/asm/ptrace.h".
+ * Registers use the 16 bits of the 64-bit register.
  */
+int av_getname_pre_handler(struct kprobe *p, struct pt_regs *regs);
 
-/* attribute types: values passed with a command */
-enum {
-    AV_UNSPEC,
-    AV_MSG,   /* String message */
-    __AV_MAX,
-};
-#define AV_MAX (__AV_MAX - 1)
-
-/* A policy for the family */
-static struct nla_policy av_genl_policy[AV_MAX + 1] = {
-    [AV_MSG] = { .type = NLA_NUL_STRING }, /* Null terminated strings */
-};
-
-/* Operation handlers */
-static int av_genl_hello(struct sk_buff *skb, struct genl_info *info);
-static int av_genl_bye(struct sk_buff *skb, struct genl_info *info);
-static int av_genl_fetch(struct sk_buff *skb, struct genl_info *info);
-
-/* Operation Commands */
-enum {
-    AV_UNSPEC_CMD,
-    AV_HELLO_CMD,   /* hello command,  requests connection */
-    AV_BYE_CMD,     /* bye command,    close connection */
-    AV_FETCH_CMD,   /* fetch command,  fetch files */
-    __AV_MAX_CMD,
-};
-#define AV_MAX_CMD (__AV_MAX_CMD - 1)
-
-/* Operation definition */
-static struct genl_ops av_genl_ops[] = {
-    {
-        .cmd = AV_HELLO_CMD,
-        .flags = 0,
-        .policy = av_genl_policy,
-        .doit = av_genl_hello,
-        .dumpit = NULL,
-    },
-    {
-        .cmd = AV_BYE_CMD,
-        .flags = 0,
-        .policy = av_genl_policy,
-        .doit = av_genl_bye,
-        .dumpit = NULL,
-    },
-    {
-        .cmd = AV_FETCH_CMD,
-        .flags = 0,
-        .policy = av_genl_policy,
-        .doit = av_genl_fetch,
-        .dumpit = NULL,
-    },
-};
-
-/* Family definition: a family is a group of commands and
- * associated operations. */
-static struct genl_family av_genl_family = {
-    .id = 0,           /* Automatica ID generation */
-    .hdrsize = 0,
-    .name = AV_FAMILY_NAME,
-    .version = 1,
-    .maxattr = AV_MAX,
-    .ops = av_genl_ops,
-    .n_ops = ARRAY_SIZE(av_genl_ops),
-    .parallel_ops = 0,
+/* 
+ * Symbol names are found in System.map 
+ * linux/kprobes.h
+ */
+static struct kprobe kp = {
+    .pre_handler = av_getname_pre_handler,
 };
 
 /* Debug function */
@@ -136,36 +64,5 @@ static void av_dump_registers(struct pt_regs *regs) {
     printk(KERN_INFO "AV: arg4=0x%lx\n", arg4);
 }
 */
-
-/* 
- * arch/x86/enty/calling.h
- * x86 function call convention, 64-bit:
- * -------------------------------------
- *  arguments           |  callee-saved      | extra caller-saved | return
- * [callee-clobbered]   |                    | [callee-clobbered] |
- * ---------------------------------------------------------------------------
- * rdi rsi rdx rcx r8-9 | rbx rbp [*] r12-15 | r10-11             | rax, rdx [**]
- *
- * This function gets called when the kprobe is hit.
- *
- * `pt_regs` is defined based on your architecture
- * x86 is defined in "arch/x86/include/asm/ptrace.h".
- * Registers use the 16 bits of the 64-bit register.
- */
-int av_getname_pre_handler(struct kprobe *p, struct pt_regs *regs);
-
-/* 
- * Symbol names are found in System.map 
- * linux/kprobes.h
- */
-static struct kprobe kp = {
-    .pre_handler = av_getname_pre_handler,
-};
-
-static int __init av_init(void);
-static void __exit av_exit(void);
-
-module_init(av_init);
-module_exit(av_exit);
 
 #endif

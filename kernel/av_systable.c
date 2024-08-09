@@ -1,5 +1,6 @@
 /*
  *   NOTE: This method does not work anymore on newer kernels.
+ *   This file is kept for reference purposes only.
  */
 
 #include <linux/module.h>   /* Needed by all modules */
