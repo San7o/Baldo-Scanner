@@ -1,8 +1,35 @@
 # linux-kernel-antivirus
 
-## Project Statement
+```bash
+$> cli -h
+Allowed options:
 
-This project aims to build a MVP antivirus in C++ for a linux operating system, providing up to date network protection and static malware analysis.
+Generic options:
+  -h [ --help ]            produce help message and exit
+  -v [ --version ]         print version information and exit
+
+Daemon options:
+  -u [ --update ]          update Malware signatures database
+  -q [ --quit ]            quit daemon gracefully
+  -Q [ --force-quit ]      force quit daemon
+
+Scan Options:
+  -s [ --scan ] arg        scan a file or directory
+  -t [ --type ] arg        type of scan: 0=signature 1=rules, 2=all[default]
+  -l [ --load ] arg        load signatures CSV
+  -y [ --yara-rules ] arg  set directory of yara rules
+  --no-multithread         disable multithreading
+
+Firewall options:
+  -b [ --block-ip ] arg    block an IPv4 address
+  -u [ --unblock-ip ] arg  unblock an IPv4 address
+```
+
+## What is this?
+
+This project features a straightforward yet effective antivirus application written in C++ specifically designed for Linux operating systems.. It incorporates static malware analysis capabilities, allowing it to scan files and executables for known malware signatures before they are executed or accessed, and to scan for YARA rules you can provide. A database of signatured and rules is autocatically fetched from [abuse.ch](https://abuse.ch/), ensuring your system is safeguarded against the latest threats. The antivirus comes with a simple firewall to block notwork traffic on provided ips.
+
+### Structure
 
 The application is composed of:
 
@@ -18,7 +45,7 @@ signatures in the malware db.
 
 - A `cli` application to interface with the daemon via `Berkley Sockets`
 
-- There might be a web application in the future
+- There might be a web UI in the future
 
 
 ## Architecture Image
