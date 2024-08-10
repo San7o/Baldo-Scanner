@@ -1,6 +1,8 @@
 #ifndef _AV_NETLINK
 #define _AV_NETLINK
 
+#ifdef AV_NETLINK
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>     /* copy_from_user */
@@ -60,5 +62,7 @@ extern struct genl_ops av_genl_ops[];
 /* Family definition: a family is a group of commands and
  * associated operations. */
 extern struct genl_family av_genl_family;
+
+#endif
 
 #endif

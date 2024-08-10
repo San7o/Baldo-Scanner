@@ -1,3 +1,5 @@
+#ifdef AV_NETLINK
+
 #include "av_netlink.h"
 #include "av_firewall.h"
 #include "av_common.h"
@@ -162,3 +164,5 @@ int av_genl_submit_ip(struct sk_buff *message, struct genl_info *info)
 }
 
 MODULE_LICENSE("GPL");
+
+#endif // AV_NETLINK

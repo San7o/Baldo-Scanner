@@ -15,6 +15,10 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/ip.h>
 
+#define MODULE_NAME "av"
+#define AV_DEV_FIREWALL_NAME "av_firewall"
+#define AV_DEV_NOTIFY_NAME "av_notify"
+
 int __init av_init(void);
 void __exit av_exit(void);
 
