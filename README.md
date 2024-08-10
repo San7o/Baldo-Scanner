@@ -1,5 +1,7 @@
 # linux-kernel-antivirus
 
+## Cli usage
+
 ```bash
 $> cli -h
 Allowed options:
@@ -23,6 +25,22 @@ Scan Options:
 Firewall options:
   -b [ --block-ip ] arg    block an IPv4 address
   -u [ --unblock-ip ] arg  unblock an IPv4 address
+```
+
+### Talk with the kernel module
+
+Both **netlink** and **character devices** are supported to communicate with the kernel module by compiling the module with the flag `AV_NETLINK` or `AV_CHAR_DEV`.
+
+```bash
+# Data Collection
+
+echo "HELLO" > /dev/av_notify   # start collecting data
+echo "FETCH" > /dev/av_notify   # copy the data (do this before reading)
+cat /dev/av_notify              # read the data
+echo "BYE"   > /dev/av_notify   # stop collecting data
+
+# Firewall
+echo "3646206603" > /dev/av_firewall  # block ip (in network byte notation)
 ```
 
 ## What is this?
