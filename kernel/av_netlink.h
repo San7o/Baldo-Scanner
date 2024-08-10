@@ -31,6 +31,7 @@ enum
     AV_UNSPEC,
     AV_MSG,   /* String message */
     AV_IPv4,  /* IPv4 address, u32 */
+    AV_DATA,  /* Data buffer */
     __AV_MAX,
 };
 #define AV_MAX (__AV_MAX - 1)

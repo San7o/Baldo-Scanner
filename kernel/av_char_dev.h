@@ -6,6 +6,9 @@
 #define MAX_INTEGER_CHAR 10
 #define AV_NOTIFY_MINOR 1
 #define AV_FIREWALL_MINOR 2
+#define AV_SERIALIZED_DATA_SIZE MAX_STRING_SIZE + MAX_SYMBOL_SIZE + 10*4 + 7
+#define AV_SERIALIZED_BUFFER_SIZE AV_SERIALIZED_DATA_SIZE * MAX_DATA_BUFFER_SIZE + 10 + 2
+
 
 #include <linux/fs.h>     /* contains file_operations structure */
 #include <linux/cdev.h>
@@ -26,7 +29,7 @@ ssize_t av_firewall_write(struct file *file, const char __user *buf, size_t coun
 /* Data structure to hold the data to send during notify_read */
 struct notify_data {
     struct cdev av_cdev;
-    char buffer[MAX_STRING_SIZE];
+    char buffer[AV_SERIALIZED_BUFFER_SIZE];
 };
 
 /* Copies the data from the global data buffer to notify_data->buffer */
@@ -47,6 +50,9 @@ ssize_t av_notify_read(struct file *file, char __user *buf, size_t count, loff_t
  * - Anything else: Returns 0
  */
 ssize_t av_notify_write(struct file *file, const char __user *buf, size_t count, loff_t *offset);
+
+char *av_serialize_call_data_buffer(void);
+char *av_serialize_call_data(struct call_data data);
 
 #endif // AV_CHAR_DEV
 

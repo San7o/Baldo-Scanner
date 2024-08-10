@@ -28,17 +28,6 @@ int __init av_init(void)
         return -1;
     }
 
-#ifdef AV_NETLINK
-    /* Register a family */
-    ret = genl_register_family(&av_genl_family);
-    if (ret != 0)
-    {
-        printk(KERN_ERR "AV: Error registering family\n");
-        unregister_kprobe(&kp);
-        return -1;
-    }
-#endif
-
 #ifdef AV_CHAR_DEV
     /* Dynamic allocation */
     if (alloc_chrdev_region(&av_dev, 0, 3, (const char *) MODULE_NAME) < 0)
@@ -106,8 +95,28 @@ int __init av_init(void)
         return -1;
     }
 #endif
+
+#ifdef AV_NETLINK
+    /* Register a family */
+    ret = genl_register_family(&av_genl_family);
+    if (ret != 0)
+    {
+        printk(KERN_ERR "AV: Error registering family\n");
+        unregister_kprobe(&kp);
+#ifdef AV_CHAR_DEV
+        device_destroy(av_cdev_class, MKDEV(MAJOR(av_dev), 1));
+        class_unregister(av_cdev_class);
+        cdev_del(&av_notify_cdev);
+        cdev_del(&av_firewall_cdev);
+        unregister_chrdev_region(av_dev, 1);
+#endif
+        return -1;
+    }
+#endif
     /* Register net hook */
     nf_register_net_hook(&init_net, &hook_ops);
+
+    call_data_buffer = kmalloc(sizeof(struct call_data_buffer_s), GFP_KERNEL);
 
     printk(KERN_INFO "AV: Module loaded\n");
     return 0;
@@ -137,6 +146,8 @@ void __exit av_exit(void)
         hash_del_rcu(&entry->node);
         kfree(entry);
     }
+
+    kfree(call_data_buffer);
 
     printk(KERN_INFO "AV: Module unloaded\n");
 }

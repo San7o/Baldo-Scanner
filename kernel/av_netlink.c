@@ -89,22 +89,7 @@ int av_genl_fetch(struct sk_buff *message_skb, struct genl_info *info)
 {
     //printk(KERN_INFO "AV: Client FETCH\n");
 
-    char message[MAX_STRING_SIZE];
     long unsigned int av_daemon_portid = (long unsigned int) info->snd_portid;
-
-    unsigned long flags;
-    spin_lock_irqsave(&av_data_lock, flags);
-    if (call_pathname[0] == '\0')
-    {
-        spin_unlock_irqrestore(&av_data_lock, flags);
-        return 0;
-    }
-    strncpy(message, call_pathname, MAX_STRING_SIZE);
-    /* Reset the call_pathname */
-    call_pathname[0] = '\0';
-    spin_unlock_irqrestore(&av_data_lock, flags);
-
-    message [MAX_STRING_SIZE - 1] = '\0';
 
     /* 1)  Allocate a new skb */
     struct sk_buff *skb;
@@ -123,13 +108,27 @@ int av_genl_fetch(struct sk_buff *message_skb, struct genl_info *info)
         printk(KERN_ERR "AV: Error creating message header\n");
         goto error;
     }
+
     /* Add the message */
-    ret = nla_put_string(skb, AV_MSG, message);
+    unsigned long flags;
+    spin_lock_irqsave(&av_data_lock, flags);
+    if (call_data_buffer->index == 0)
+    {
+        spin_unlock_irqrestore(&av_data_lock, flags);
+        return 0;
+    }
+    /* Copy the call_data_buffer to the message */
+    ret = nla_put(skb, AV_DATA, sizeof(struct call_data_buffer_s), call_data_buffer);
     if (ret)
     {
+        spin_unlock_irqrestore(&av_data_lock, flags);
         printk(KERN_ERR "AV: Error creating message\n");
         goto error;
     }
+    /* Reset the call_pathname */
+    call_data_buffer->index = 0;
+    spin_unlock_irqrestore(&av_data_lock, flags);
+
     /* End the message */
     genlmsg_end(skb, msg_head);
 

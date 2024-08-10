@@ -21,7 +21,8 @@ int av_getname_pre_handler(struct kprobe *p, struct pt_regs *regs)
 
     /* Get the filename */
     
-    const char __user* user_filename = (const char __user*) regs_get_kernel_argument(regs, 1);
+    const char __user* user_filename = (const char __user*)
+                             regs_get_kernel_argument(regs, 1);
     if (!user_filename)
     {
         printk(KERN_ERR "AV: Error getting filename\n");
@@ -30,19 +31,29 @@ int av_getname_pre_handler(struct kprobe *p, struct pt_regs *regs)
     
     char filename[MAX_STRING_SIZE];
     // strncpy_from_user does not work :(
-    unsigned long ret = raw_copy_from_user(filename, user_filename, MAX_STRING_SIZE);
+    unsigned long ret = raw_copy_from_user(filename, user_filename,
+                    MAX_STRING_SIZE);
     if (ret < 0)
     {
         printk(KERN_ERR "AV: Error copying filename\n");
         goto error;
     }
 
-    char pid_c[10];
-    sprintf(pid_c, "%d ", current->pid);
     spin_lock(&av_data_lock);
-    strncat(call_pathname, pid_c, MAX_STRING_SIZE - strlen(call_pathname) - 1);
-    strncat(call_pathname, filename, MAX_STRING_SIZE - strlen(call_pathname) - 1);
-    strncat(call_pathname, "\n", MAX_STRING_SIZE - strlen(call_pathname) - 1);
+
+    call_data_buffer->data[call_data_buffer->index] = (struct call_data){
+        .pid  = current->pid,
+        .ppid = current->parent->pid,
+        .tgid = current->tgid,
+        .uid  = current_uid().val,
+    };
+    strncpy(call_data_buffer->data[call_data_buffer->index].data,
+                    filename, MAX_STRING_SIZE);
+    strncpy(call_data_buffer->data[call_data_buffer->index].symbol,
+                    "do_sys_open\0", MAX_SYMBOL_SIZE);
+
+    call_data_buffer->index =
+            (call_data_buffer->index + 1) % MAX_DATA_BUFFER_SIZE;
     spin_unlock(&av_data_lock);
 
     //printk(KERN_INFO "Called openat with: %s", filename);
