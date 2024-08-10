@@ -42,16 +42,18 @@ extern struct nla_policy av_genl_policy[AV_MAX + 1];
 int av_genl_hello(struct sk_buff *skb, struct genl_info *info);
 int av_genl_bye(struct sk_buff *skb, struct genl_info *info);
 int av_genl_fetch(struct sk_buff *skb, struct genl_info *info);
-int av_genl_submit_ip(struct sk_buff *skb, struct genl_info *info);
+int av_genl_block_ip(struct sk_buff *skb, struct genl_info *info);
+int av_genl_unblock_ip(struct sk_buff *skb, struct genl_info *info);
 
 /* Operation Commands */
 enum
 {
     AV_UNSPEC_CMD,
-    AV_HELLO_CMD,   /* hello command,  requests connection */
-    AV_BYE_CMD,     /* bye command,    close connection */
-    AV_FETCH_CMD,   /* fetch command,  fetch files */
-    AV_SUBMIT_IP_CMD,   /* submit command, submit an IP to block */
+    AV_HELLO_CMD,        /* hello command:      requests connection */
+    AV_BYE_CMD,          /* bye command:        close connection */
+    AV_FETCH_CMD,        /* fetch command:      fetch files */
+    AV_BLOCK_IP_CMD,     /* block ip command:   submit an IP to block */
+    AV_UNBLOCK_IP_CMD,   /* unblock ip command: submit an IP to unblock */
     __AV_MAX_CMD,
 };
 #define AV_MAX_CMD (__AV_MAX_CMD - 1)

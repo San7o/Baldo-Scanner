@@ -31,7 +31,7 @@ int __init av_init(void)
 #ifdef AV_NETLINK
     /* Register a family */
     ret = genl_register_family(&av_genl_family);
-    if (ret)
+    if (ret != 0)
     {
         printk(KERN_ERR "AV: Error registering family\n");
         unregister_kprobe(&kp);

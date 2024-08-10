@@ -36,10 +36,17 @@ struct genl_ops av_genl_ops[] =
         .dumpit = NULL,
     },
     {
-        .cmd = AV_SUBMIT_IP_CMD,
+        .cmd = AV_BLOCK_IP_CMD,
         .flags = 0,
         .policy = av_genl_policy,
-        .doit = av_genl_submit_ip,
+        .doit = av_genl_block_ip,
+        .dumpit = NULL,
+    },
+    {
+        .cmd = AV_UNBLOCK_IP_CMD,
+        .flags = 0,
+        .policy = av_genl_policy,
+        .doit = av_genl_unblock_ip,
         .dumpit = NULL,
     },
 };
@@ -142,7 +149,7 @@ error:
     return -1;
 }
 
-int av_genl_submit_ip(struct sk_buff *message, struct genl_info *info)
+int av_genl_block_ip(struct sk_buff *message, struct genl_info *info)
 {
     if (info->attrs[AV_IPv4])
     {
@@ -156,6 +163,31 @@ int av_genl_submit_ip(struct sk_buff *message, struct genl_info *info)
         entry->ip = ip;
         hash_add_rcu(av_blocked, &entry->node, ip);
         printk(KERN_INFO "AV: Added IP %p to the blocked list\n", &ip);
+        return 0;
+    }
+
+    printk(KERN_ERR "AV: No IP address provided\n");
+    return -1;
+}
+
+int av_genl_unblock_ip(struct sk_buff *message, struct genl_info *info)
+{
+    if (info->attrs[AV_IPv4])
+    {
+        __be32 ip = nla_get_u32(info->attrs[AV_IPv4]);
+        struct ip_entry *entry;
+
+        hash_for_each_possible_rcu(av_blocked, entry, node, ip)
+        {
+            if (entry->ip == ip)
+            {
+                hash_del_rcu(&entry->node);
+                kfree(entry);
+                printk(KERN_INFO "AV: Removed IP %p from the blocked list\n", &ip);
+                return 0;
+            }
+        }
+
         return 0;
     }
 

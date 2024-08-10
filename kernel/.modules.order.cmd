@@ -1,0 +1,1 @@
+cmd_/home/lanto/Documents/linux-kernel-antivirus/kernel/modules.order := {   echo /home/lanto/Documents/linux-kernel-antivirus/kernel/av.ko; :; } > /home/lanto/Documents/linux-kernel-antivirus/kernel/modules.order

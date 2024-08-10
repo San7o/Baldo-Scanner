@@ -212,8 +212,7 @@ void Daemon::parse_settings(Settings settings, int fd)
     { 
         if (settings.ipAction != Enums::IpAction::NO_ACTION)
         {
-            Kernel::send_ip_to_block(settings.ip);
-            Logger::Log(Enums::LogLevel::INFO, "Sent IP to block: " + std::to_string(settings.ip));
+            Kernel::send_ip_to_firewall(settings.ip, settings.ipAction);
         }
 
         if (settings.update)

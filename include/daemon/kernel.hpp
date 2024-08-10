@@ -11,6 +11,8 @@
 #include <netlink/attr.h>
 #include <netlink/msg.h>
 
+#include "common/settings.hpp"
+
 namespace AV
 {
 
@@ -36,11 +38,12 @@ namespace AV
  */
 enum
 {
-    AV_UNSPEC_CMD,    /* no specific message */
-    AV_HELLO_CMD,     /* start capturing     */
-    AV_BYE_CMD,       /* stop capturing      */
-    AV_FETCH_CMD,     /* fetch data          */
-    AV_SUBMIT_IP_CMD, /* submit an IP to block */
+    AV_UNSPEC_CMD,     /* no specific message     */
+    AV_HELLO_CMD,      /* start capturing         */
+    AV_BYE_CMD,        /* stop capturing          */
+    AV_FETCH_CMD,      /* fetch data              */
+    AV_BLOCK_IP_CMD,   /* submit an IP to block   */
+    AV_UNBLOCK_IP_CMD, /* submit an IP to unblock */
     __AV_MAX_CMD,
 };
 #define AV_MAX_CMD (__AV_MAX_CMD - 1) /* Max value of the enum */
@@ -88,7 +91,7 @@ static void Init();
  * table of blocked ips. The kernel will block any
  * packet from that ip.
  */
-static void send_ip_to_block(uint32_t ipv4);
+static void send_ip_to_firewall(uint32_t ipv4, Enums::IpAction action);
 /* 
  * Create a new thread with `thread_listen_kernel`
  */

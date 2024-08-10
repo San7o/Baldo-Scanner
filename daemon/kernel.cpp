@@ -69,7 +69,7 @@ void Kernel::listen_kernel()
     }
 }
 
-void Kernel::send_ip_to_block(uint32_t ipv4)
+void Kernel::send_ip_to_firewall(uint32_t ipv4, Enums::IpAction action)
 {
     if (Kernel::family_id < 0)
     {
@@ -102,12 +102,25 @@ void Kernel::send_ip_to_block(uint32_t ipv4)
         return;
     }
     
-    /* Send BYE message to kernel */
-    if (!genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ,
-                            Kernel::family_id, 0, 0, AV_SUBMIT_IP_CMD, 1))
+    if (action == Enums::IpAction::BLOCK)
     {
-        Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put");
-        return;
+        /* Send BLOCK message to kernel */
+        if (!genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ,
+                                Kernel::family_id, 0, 0, AV_BLOCK_IP_CMD, 1))
+        {
+            Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put");
+            return;
+        }
+    }
+    else if (action == Enums::IpAction::UNBLOCK)
+    {
+        /* Send UNBLOCK message to kernel */
+        if (!genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ,
+                                Kernel::family_id, 0, 0, AV_UNBLOCK_IP_CMD, 1))
+        {
+            Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put");
+            return;
+        }
     }
 
     /* Sending the IP */
@@ -254,7 +267,7 @@ int Kernel::kernel_msg_callback(struct nl_msg *msg, void *arg) {
     {
         std::string message((char*) nla_data(attrs[AV_MSG]));
         if (message == "") return NL_OK;
-        Logger::Log(Enums::LogLevel::DEBUG, "Received message from kernel: " + message);
+        Logger::Log(Enums::LogLevel::DEBUG, "Message: " + message);
     }
 
     return NL_OK;

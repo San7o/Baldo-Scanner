@@ -40,6 +40,7 @@ struct Settings
      char yaraRulesPath[MAX_PATH];
      char signaturesPath[MAX_PATH];
      uint32_t ip;
-};
+} __attribute__((packed)); // This is to ensure that the struct
+                           // is packed and no padding is added
 
 } // namespace AV

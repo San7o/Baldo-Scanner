@@ -24,7 +24,7 @@ Scan Options:
 
 Firewall options:
   -b [ --block-ip ] arg    block an IPv4 address
-  -u [ --unblock-ip ] arg  unblock an IPv4 address
+  -B [ --unblock-ip ] arg  unblock an IPv4 address
 ```
 
 ### Talk with the kernel module
@@ -40,6 +40,7 @@ cat /dev/av_notify              # read the data
 echo "BYE"   > /dev/av_notify   # stop collecting data
 
 # Firewall
+
 echo "3646206603" > /dev/av_firewall  # block ip (in network byte notation)
 ```
 

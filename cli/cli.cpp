@@ -91,7 +91,7 @@ void Cli::ParseArgs(int argc, char** argv)
     po::options_description firewall_options("Firewall options");
     firewall_options.add_options()
         ("block-ip,b", po::value<std::string>(), "block an IPv4 address")
-        ("unblock-ip,u", po::value<std::string>(), "unblock an IPv4 address");
+        ("unblock-ip,B", po::value<std::string>(), "unblock an IPv4 address");
 
     po::options_description desc("Allowed options");
     desc.add(generic)

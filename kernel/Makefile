@@ -11,7 +11,7 @@ KVERSION = $(shell uname -r)
 DEBUG_CFLAGS += -g -DDEBUG
 
 # Use AV_CHAR_DEV or AV_NETLINK (or both)
-ccflags-y := -DAV_CHAR_DEV  
+ccflags-y := -DAV_NETLINK
 
 all: 
 	make -C ../linux/ M=$(PWD) modules
