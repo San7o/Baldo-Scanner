@@ -3,17 +3,16 @@
 
 #ifdef AV_CHAR_DEV
 
+#include <linux/fs.h>     /* contains file_operations structure */
+#include <linux/cdev.h>
+
+#include "av_common.h"
+
 #define MAX_INTEGER_CHAR 10
 #define AV_NOTIFY_MINOR 1
 #define AV_FIREWALL_MINOR 2
 #define AV_SERIALIZED_DATA_SIZE MAX_STRING_SIZE + MAX_SYMBOL_SIZE + 10*4 + 7
 #define AV_SERIALIZED_BUFFER_SIZE AV_SERIALIZED_DATA_SIZE * MAX_DATA_BUFFER_SIZE + 10 + 2
-
-
-#include <linux/fs.h>     /* contains file_operations structure */
-#include <linux/cdev.h>
-
-#include "av_common.h"
 
 extern dev_t av_dev;
 extern struct class *av_cdev_class;

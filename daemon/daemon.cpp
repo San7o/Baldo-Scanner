@@ -5,6 +5,7 @@
 #include "daemon/engine.hpp"
 #include "daemon/yara.hpp"
 #include "daemon/kernel.hpp"
+#include "common/banner.hpp"
 
 #include <unistd.h>
 #include <thread>
@@ -29,6 +30,8 @@ std::mutex Daemon::available_threads_mutex;
 
 void Daemon::Init()
 {
+    banner();
+
     Logger::Init();
     Logger::Log(Enums::LogLevel::INFO, "Daemon starting");
 
