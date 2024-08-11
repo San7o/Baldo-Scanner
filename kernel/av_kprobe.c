@@ -19,6 +19,7 @@ int av_getname_pre_handler(struct kprobe *p, struct pt_regs *regs)
     }
     spin_unlock(&av_ready_lock);
 
+
     /* Get the filename */
     
     const char __user* user_filename = (const char __user*)
@@ -41,22 +42,31 @@ int av_getname_pre_handler(struct kprobe *p, struct pt_regs *regs)
 
     spin_lock(&av_data_lock);
 
-    call_data_buffer->data[call_data_buffer->index] = (struct call_data){
+    call_data_buffer->num =
+            (call_data_buffer->num) % MAX_DATA_BUFFER_SIZE + 1; /* Must be at leas 1 */
+
+    call_data_buffer->data[call_data_buffer->num - 1] = (struct call_data){
         .pid  = current->pid,
         .ppid = current->parent->pid,
         .tgid = current->tgid,
         .uid  = current_uid().val,
     };
-    strncpy(call_data_buffer->data[call_data_buffer->index].data,
-                    filename, MAX_STRING_SIZE);
-    strncpy(call_data_buffer->data[call_data_buffer->index].symbol,
-                    "do_sys_open\0", MAX_SYMBOL_SIZE);
+    if (strncpy(call_data_buffer->data[call_data_buffer->num - 1].data,
+                    filename, MAX_STRING_SIZE) == NULL)
+    {
+        spin_unlock(&av_data_lock);
+        printk(KERN_ERR "AV: Error copying filename\n");
+        goto error;
+    }
+    if (strncpy(call_data_buffer->data[call_data_buffer->num - 1].symbol,
+                    "do_sys_open\0", MAX_SYMBOL_SIZE) == NULL)
+    {
+        spin_unlock(&av_data_lock);
+        printk(KERN_ERR "AV: Error copying symbol\n");
+        goto error;
+    }
 
-    call_data_buffer->index =
-            (call_data_buffer->index + 1) % MAX_DATA_BUFFER_SIZE;
     spin_unlock(&av_data_lock);
-
-    //printk(KERN_INFO "Called openat with: %s", filename);
 
     return 0;
 error:

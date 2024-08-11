@@ -11,6 +11,10 @@
 #define MAX_INTEGER_CHAR 10
 #define AV_NOTIFY_MINOR 1
 #define AV_FIREWALL_MINOR 2
+
+/* The size of the serialized data is the sum of the sizes of the
+ * serialized data and the serialized call_data struct, plus some
+ * extra space for the separators and the null terminator */
 #define AV_SERIALIZED_DATA_SIZE MAX_STRING_SIZE + MAX_SYMBOL_SIZE + 10*4 + 7
 #define AV_SERIALIZED_BUFFER_SIZE AV_SERIALIZED_DATA_SIZE * MAX_DATA_BUFFER_SIZE + 10 + 2
 

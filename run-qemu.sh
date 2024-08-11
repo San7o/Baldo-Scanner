@@ -22,4 +22,5 @@ qemu-system-x86_64 \
     -append "nokaslr root=/dev/sda debug rw console=ttyS0" \
     -k it \
     --enable-kvm \
-    -s
+    -s \
+    -vga std

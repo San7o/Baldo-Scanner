@@ -19,11 +19,19 @@ MODULE_DESCRIPTION("Kprobe hook for the antivirus daemon");
 
 int __init av_init(void)
 {
+    /* Initialize the data buff */
+    unsigned long flags;
+    spin_lock_irqsave(&av_data_lock, flags);
+    call_data_buffer = kmalloc(sizeof(struct call_data_buffer_s), GFP_KERNEL);
+    call_data_buffer->num = 0;
+    spin_unlock_irqrestore(&av_data_lock, flags);
+
     /* Register kprobe */
     int ret;
     kp.symbol_name = "do_sys_open";
     if ((ret = register_kprobe(&kp)) < 0)
     {
+        kfree(call_data_buffer);
         printk(KERN_INFO "AV: register_kprobe failed, returned %d\n", ret);
         return -1;
     }
@@ -33,6 +41,7 @@ int __init av_init(void)
     if (alloc_chrdev_region(&av_dev, 0, 3, (const char *) MODULE_NAME) < 0)
     {
         printk(KERN_ERR "alloc_chrdev_region failed\n");
+        kfree(call_data_buffer);
         unregister_kprobe(&kp);
         return -1;
     }
@@ -46,6 +55,7 @@ int __init av_init(void)
     if (!av_cdev_class)
     {
         printk(KERN_ERR "class_create failed\n");
+        kfree(call_data_buffer);
         unregister_kprobe(&kp);
         unregister_chrdev_region(av_dev, 1);
         return -1;
@@ -55,6 +65,7 @@ int __init av_init(void)
     if (cdev_add(&av_notify_cdev, MKDEV(MAJOR(av_dev), 1), 1) < 0)
     {
         printk(KERN_ERR "cdev_add notify failed\n");
+        kfree(call_data_buffer);
         unregister_kprobe(&kp);
         unregister_chrdev_region(av_dev, 1);
         return -1;
@@ -64,6 +75,7 @@ int __init av_init(void)
     if (cdev_add(&av_firewall_cdev, MKDEV(MAJOR(av_dev), 2), 1) < 0)
     {
         printk(KERN_ERR "cdev_add notify failed\n");
+        kfree(call_data_buffer);
         unregister_kprobe(&kp);
         class_unregister(av_cdev_class);
         cdev_del(&av_notify_cdev);
@@ -75,6 +87,7 @@ int __init av_init(void)
                             (const char *) AV_DEV_NOTIFY_NAME))
     {
         printk(KERN_ERR "device_create failed\n");
+        kfree(call_data_buffer);
         unregister_kprobe(&kp);
         class_unregister(av_cdev_class);
         cdev_del(&av_notify_cdev);
@@ -86,6 +99,7 @@ int __init av_init(void)
                             (const char *) AV_DEV_FIREWALL_NAME))
     {
         printk(KERN_ERR "device_create failed\n");
+        kfree(call_data_buffer);
         unregister_kprobe(&kp);
         device_destroy(av_cdev_class, MKDEV(MAJOR(av_dev), 1));
         class_unregister(av_cdev_class);
@@ -102,6 +116,7 @@ int __init av_init(void)
     if (ret != 0)
     {
         printk(KERN_ERR "AV: Error registering family\n");
+        kfree(call_data_buffer);
         unregister_kprobe(&kp);
 #ifdef AV_CHAR_DEV
         device_destroy(av_cdev_class, MKDEV(MAJOR(av_dev), 1));
@@ -115,8 +130,6 @@ int __init av_init(void)
 #endif
     /* Register net hook */
     nf_register_net_hook(&init_net, &hook_ops);
-
-    call_data_buffer = kmalloc(sizeof(struct call_data_buffer_s), GFP_KERNEL);
 
     printk(KERN_INFO "AV: Module loaded\n");
     return 0;

@@ -61,27 +61,26 @@ int av_notify_open(struct inode *inode, struct file *file) {
     file->private_data = my_data;
 
     /* Initialize buffer */
-    unsigned long flags;
-    spin_lock_irqsave(&av_data_lock, flags);
-    
     for (int i = 0; i < AV_SERIALIZED_BUFFER_SIZE; i++)
     {
         my_data->buffer[i] = 0;
     }
 
     char* serialized_data = av_serialize_call_data_buffer();
+    if (serialized_data == NULL)
+    {
+        return 0;
+    }
     int res = raw_copy_to_user(my_data->buffer,
                     serialized_data,
                     strlen(serialized_data));
     if (res)
     {
-        spin_unlock_irqrestore(&av_data_lock, flags);
         kfree(serialized_data);
         return -1;
     }
-    spin_unlock_irqrestore(&av_data_lock, flags);
-    kfree(serialized_data);
 
+    kfree(serialized_data);
     return 0;
 }
 
@@ -127,8 +126,7 @@ ssize_t av_notify_write(struct file *file, const char __user *buf,
         printk(KERN_INFO "AV: Client BYE\n");
         return count;
     }
-
-    /* Updates the data buffer and resets the buffer index */
+    /* Updates the data buffer and resets the buffer num */
     else if (strncmp(buf, "FETCH", 5) == 0)
     {
         struct notify_data *my_data = (struct notify_data*) file->private_data;
@@ -145,7 +143,7 @@ ssize_t av_notify_write(struct file *file, const char __user *buf,
             kfree(serialized_data);
             return -1;
         }
-        call_data_buffer->index = 0;
+        call_data_buffer->num = 0;
         spin_unlock_irqrestore(&av_data_lock, flags);
         kfree(serialized_data);
 
@@ -159,14 +157,25 @@ ssize_t av_notify_write(struct file *file, const char __user *buf,
 /* Note: the buffer needs to be freed after usage */
 char *av_serialize_call_data_buffer()
 {
+    unsigned long flags;
+    spin_lock_irqsave(&av_data_lock, flags);
+
+    if (call_data_buffer->num == 0)
+    {
+        spin_unlock_irqrestore(&av_data_lock, flags);
+        return NULL;
+    }
+
     char *buffer = kmalloc(AV_SERIALIZED_BUFFER_SIZE, GFP_KERNEL);
-    sprintf(buffer, "%d\n", call_data_buffer->index);
-    for (int i = 0; i < call_data_buffer->index; i++)
+    sprintf(buffer, "%d\n", call_data_buffer->num);
+    for (int i = 0; i < call_data_buffer->num; i++)
     {
         char* serialized = av_serialize_call_data(call_data_buffer->data[i]);
-        strncat(buffer, serialized, AV_SERIALIZED_DATA_SIZE);
+        sprintf(buffer, "%s%s", buffer, serialized);
         kfree(serialized);
     }
+
+    spin_unlock_irqrestore(&av_data_lock, flags);
     return buffer;
 }
 

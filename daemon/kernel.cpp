@@ -6,6 +6,7 @@ using namespace AV;
 
 struct nl_sock *Kernel::sk = NULL;
 int Kernel::family_id = -1;
+struct nla_policy Kernel::av_genl_policy[AV_MAX + 1];
 
 void Kernel::Init()
 {
@@ -27,6 +28,11 @@ void Kernel::Init()
         exit(1);
     }
 
+    /* Setup policies */
+    Kernel::av_genl_policy[AV_MSG]  = { .type = NLA_NUL_STRING };  /* Null terminated strings */
+    Kernel::av_genl_policy[AV_IPv4] = { .type = NLA_U32 };         /* 32-bit unsigned integers */
+    Kernel::av_genl_policy[AV_DATA] = { .type = NLA_BINARY };      /* Binary data */
+    
     /* Resolve the family ID */
     Kernel::family_id = genl_ctrl_resolve(Kernel::sk, AV_FAMILY_NAME);
     if (Kernel::family_id < 0)
@@ -247,6 +253,7 @@ void *Kernel::thread_listen_kernel(void* arg)
 }
 
 int Kernel::kernel_msg_callback(struct nl_msg *msg, void *arg) {
+    
     struct nlmsghdr *nlh = nlmsg_hdr(msg);
 
     struct nlattr *attrs[AV_MAX + 1];
@@ -263,11 +270,11 @@ int Kernel::kernel_msg_callback(struct nl_msg *msg, void *arg) {
     struct genlmsghdr *gnlh = (struct genlmsghdr*) nlmsg_data(nlh);
     nla_parse(attrs, AV_MAX, genlmsg_attrdata(gnlh, 0),
                     genlmsg_attrlen(gnlh, 0), NULL);
-    if (attrs[AV_MSG])
+    if (attrs[AV_DATA])
     {
-        std::string message((char*) nla_data(attrs[AV_MSG]));
-        if (message == "") return NL_OK;
-        Logger::Log(Enums::LogLevel::DEBUG, "Message: " + message);
+        struct call_data_buffer_s *call_data_buffer = (struct call_data_buffer_s*) nla_data(attrs[AV_DATA]);
+        print_call_data_buffer(call_data_buffer);
+
     }
 
     return NL_OK;
@@ -334,4 +341,19 @@ void Kernel::free_nlmsg(void* arg)
 {
     struct nl_msg *msg = (struct nl_msg*) arg;
     nlmsg_free(msg);
+}
+
+void Kernel::print_call_data_buffer(struct call_data_buffer_s *call_data_buffer)
+{
+    Logger::Log(Enums::LogLevel::DEBUG, "Num: " + std::to_string(call_data_buffer->num));
+    for (int i = 0; i < call_data_buffer->num; i++)
+    {
+        Logger::Log(Enums::LogLevel::DEBUG, "Data: " + std::string(call_data_buffer->data[i].data));
+        Logger::Log(Enums::LogLevel::DEBUG, "Symbol: " + std::string(call_data_buffer->data[i].symbol));
+        Logger::Log(Enums::LogLevel::DEBUG, "PID: " + std::to_string(call_data_buffer->data[i].pid));
+        Logger::Log(Enums::LogLevel::DEBUG, "PPID: " + std::to_string(call_data_buffer->data[i].ppid));
+        Logger::Log(Enums::LogLevel::DEBUG, "TGID: " + std::to_string(call_data_buffer->data[i].tgid));
+        Logger::Log(Enums::LogLevel::DEBUG, "UID: " + std::to_string(call_data_buffer->data[i].uid));
+    }
+
 }

@@ -1,0 +1,1 @@
+cmd_/home/lanto/Documents/linux-kernel-antivirus/kernel/av.mod := printf '%s\n'   av_common.o av_netlink.o av_kprobe.o av_firewall.o av_main.o av_char_dev.o | awk '!x[$$0]++ { print("/home/lanto/Documents/linux-kernel-antivirus/kernel/"$$0) }' > /home/lanto/Documents/linux-kernel-antivirus/kernel/av.mod

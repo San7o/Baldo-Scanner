@@ -7,7 +7,7 @@
 
 #define MAX_STRING_SIZE 1024
 #define MAX_SYMBOL_SIZE 80      /* found experimentally */
-#define MAX_DATA_BUFFER_SIZE 10 /* the limit of a netlink message
+#define MAX_DATA_BUFFER_SIZE 5  /* the limit of a netlink message
                                    appears to be 16KB */
 
 extern spinlock_t av_ready_lock;
@@ -33,7 +33,7 @@ struct call_data
 
 struct call_data_buffer_s
 {
-    int index;
+    int num;                        /* Number of elements in the buffer */
     struct call_data data[MAX_DATA_BUFFER_SIZE];
 } __attribute__( ( packed ) );
 

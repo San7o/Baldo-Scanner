@@ -9,7 +9,8 @@
 struct nla_policy av_genl_policy[AV_MAX + 1] =
 {
     [AV_MSG]  = { .type = NLA_NUL_STRING },  /* Null terminated strings */
-    [AV_IPv4] = { .type = NLA_U32 },        /* 32-bit unsigned integers */
+    [AV_IPv4] = { .type = NLA_U32 },         /* 32-bit unsigned integers */
+    [AV_DATA] = { .type = NLA_BINARY },      /* Binary data */
 };
 
 struct genl_ops av_genl_ops[] =
@@ -89,11 +90,19 @@ int av_genl_fetch(struct sk_buff *message_skb, struct genl_info *info)
 {
     //printk(KERN_INFO "AV: Client FETCH\n");
 
+    spin_lock(&av_ready_lock);
+    if (!send_ready)
+    {
+        spin_unlock(&av_ready_lock);
+        return 0;
+    }
+    spin_unlock(&av_ready_lock);
+
     long unsigned int av_daemon_portid = (long unsigned int) info->snd_portid;
 
     /* 1)  Allocate a new skb */
     struct sk_buff *skb;
-    skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+    skb = genlmsg_new(sizeof(struct call_data_buffer_s) + GENL_HDRLEN + NLA_HDRLEN, GFP_KERNEL);
     if (!skb)
     {
         printk(KERN_ERR "AV: Error creating skb\n");
@@ -112,9 +121,10 @@ int av_genl_fetch(struct sk_buff *message_skb, struct genl_info *info)
     /* Add the message */
     unsigned long flags;
     spin_lock_irqsave(&av_data_lock, flags);
-    if (call_data_buffer->index == 0)
+    if (call_data_buffer->num == 0)
     {
         spin_unlock_irqrestore(&av_data_lock, flags);
+        nlmsg_free(skb);
         return 0;
     }
     /* Copy the call_data_buffer to the message */
@@ -126,7 +136,7 @@ int av_genl_fetch(struct sk_buff *message_skb, struct genl_info *info)
         goto error;
     }
     /* Reset the call_pathname */
-    call_data_buffer->index = 0;
+    call_data_buffer->num = 0;
     spin_unlock_irqrestore(&av_data_lock, flags);
 
     /* End the message */
@@ -141,7 +151,6 @@ int av_genl_fetch(struct sk_buff *message_skb, struct genl_info *info)
         printk(KERN_ERR "AV: Error sending message\n");
         goto error;
     }
-    //printk(KERN_INFO "AV: Sent filename=%s\n", filename);
 
     return 0;
 error:

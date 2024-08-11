@@ -13,8 +13,29 @@
 
 #include "common/settings.hpp"
 
+#define MAX_STRING_SIZE 1024
+#define MAX_SYMBOL_SIZE 80      /* found experimentally */
+#define MAX_DATA_BUFFER_SIZE 5  /* the limit of a netlink message
+                                   appears to be 16KB */
 namespace AV
 {
+
+struct call_data
+{
+    int pid;                        /* process id */
+    int ppid;                       /* parent process id, current->real_parent->pid */
+    int tgid;                       /* thread group id */
+    unsigned int uid;               /* user id */
+    char symbol[MAX_SYMBOL_SIZE]; 
+    char data[MAX_STRING_SIZE];
+} __attribute__( ( packed ) );      /* This is to ensure that the struct
+                                     * is packed and no padding is added */
+
+struct call_data_buffer_s
+{
+    int num;
+    struct call_data data[MAX_DATA_BUFFER_SIZE];
+} __attribute__( ( packed ) );
 
 /*
  * This file contains the code responsible
@@ -60,6 +81,7 @@ enum
     AV_UNSPEC,
     AV_MSG,   /* String message */
     AV_IPv4,  /* IPv4 address, u32 */
+    AV_DATA,  /* Data buffer */
     __AV_MAX,
 };
 #define AV_MAX (__AV_MAX - 1) /* Max value of the enum */
@@ -77,6 +99,7 @@ Kernel() = delete; /* Singleton */
  */
 static struct nl_sock *sk;
 static int family_id;
+static struct nla_policy av_genl_policy[AV_MAX + 1];
 
 /* 
  * Allocate the connection and resolve
@@ -131,6 +154,9 @@ static void stop_kernel_netlink();
 static void free_nl_socket(void* arg);
 static void free_nlmsg(void* arg);
 
+private:
+
+static void print_call_data_buffer(struct call_data_buffer_s *call_data_buffer);;
 };
 
 }
