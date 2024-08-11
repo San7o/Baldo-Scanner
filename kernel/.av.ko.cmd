@@ -1,1 +1,0 @@
-cmd_/home/lanto/Documents/linux-kernel-antivirus/kernel/av.ko := ld -r -m elf_x86_64 -z noexecstack --no-warn-rwx-segments --build-id=sha1  -T scripts/module.lds -o /home/lanto/Documents/linux-kernel-antivirus/kernel/av.ko /home/lanto/Documents/linux-kernel-antivirus/kernel/av.o /home/lanto/Documents/linux-kernel-antivirus/kernel/av.mod.o;  true

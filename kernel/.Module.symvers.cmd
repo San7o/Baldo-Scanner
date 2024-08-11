@@ -1,1 +1,0 @@
-cmd_/home/lanto/Documents/linux-kernel-antivirus/kernel/Module.symvers :=  sed 's/ko$$/o/'  /home/lanto/Documents/linux-kernel-antivirus/kernel/modules.order | scripts/mod/modpost       -o /home/lanto/Documents/linux-kernel-antivirus/kernel/Module.symvers -n -e -i Module.symvers -T - 
