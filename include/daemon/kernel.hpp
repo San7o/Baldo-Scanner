@@ -1,6 +1,7 @@
 #pragma once
 
 #include <thread>
+#include <sqlite3.h> 
 
 /* libnl */
 #include <netlink/netlink.h>
@@ -13,6 +14,7 @@
 
 #include "common/settings.hpp"
 
+#define KERNEL_DB "/etc/antivirus/kernel.db"
 #define MAX_STRING_SIZE 1024
 #define MAX_SYMBOL_SIZE 80      /* found experimentally */
 #define MAX_DATA_BUFFER_SIZE 5  /* the limit of a netlink message
@@ -100,6 +102,7 @@ Kernel() = delete; /* Singleton */
 static struct nl_sock *sk;
 static int family_id;
 static struct nla_policy av_genl_policy[AV_MAX + 1];
+static sqlite3* connection;            /* Connection to KERNEL_DB */
 
 /* 
  * Allocate the connection and resolve
@@ -157,6 +160,7 @@ static void free_nlmsg(void* arg);
 private:
 
 static void print_call_data_buffer(struct call_data_buffer_s *call_data_buffer);;
+static void save_kernel_data(struct call_data_buffer_s *data);
 };
 
 }

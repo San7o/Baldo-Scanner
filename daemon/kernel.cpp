@@ -1,12 +1,17 @@
 #include "daemon/kernel.hpp"
 #include "daemon/daemon.hpp"
 #include "common/logger.hpp"
+#include "common/utils.hpp"
+
+#include <sqlite3.h>
+#include <fstream>
 
 using namespace AV;
 
 struct nl_sock *Kernel::sk = NULL;
 int Kernel::family_id = -1;
 struct nla_policy Kernel::av_genl_policy[AV_MAX + 1];
+sqlite3* Kernel::connection = nullptr;
 
 void Kernel::Init()
 {
@@ -32,7 +37,29 @@ void Kernel::Init()
     Kernel::av_genl_policy[AV_MSG]  = { .type = NLA_NUL_STRING };  /* Null terminated strings */
     Kernel::av_genl_policy[AV_IPv4] = { .type = NLA_U32 };         /* 32-bit unsigned integers */
     Kernel::av_genl_policy[AV_DATA] = { .type = NLA_BINARY };      /* Binary data */
+
+    /* Initialize connection with db */
+    char* errMsg = nullptr;
+    if(!std::filesystem::exists(KERNEL_DB))
+    {
+        std::ofstream file(KERNEL_DB);
+        file.close();
+    }
+    ret = sqlite3_open(KERNEL_DB, &connection);
+    if (ret != SQLITE_OK)
+    {
+        Logger::Log(Enums::LogLevel::ERROR, "Can't open database: " + std::string(sqlite3_errmsg(connection)));
+        sqlite3_close(connection);
+        exit(1);
+    }
     
+    /* Create a table if it doesn't exist */
+    std::string createTableSQL = "CREATE TABLE IF NOT EXISTS kdata("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, pid INT, ppid INT,"
+            "tgid INT,uid INT, symbol TEXT, data TEXT);";
+    ret = sqlite3_exec(connection, createTableSQL.c_str(), nullptr, nullptr, &errMsg);
+    check_sqlite_error(ret, connection);
+
     /* Resolve the family ID */
     Kernel::family_id = genl_ctrl_resolve(Kernel::sk, AV_FAMILY_NAME);
     if (Kernel::family_id < 0)
@@ -273,8 +300,8 @@ int Kernel::kernel_msg_callback(struct nl_msg *msg, void *arg) {
     if (attrs[AV_DATA])
     {
         struct call_data_buffer_s *call_data_buffer = (struct call_data_buffer_s*) nla_data(attrs[AV_DATA]);
-        print_call_data_buffer(call_data_buffer);
-
+        //print_call_data_buffer(call_data_buffer);
+        Kernel::save_kernel_data(call_data_buffer);
     }
 
     return NL_OK;
@@ -286,6 +313,9 @@ void Kernel::stop_kernel_netlink()
     {
         return;
     }
+
+    /* Close connection with db */
+    sqlite3_close(connection);
 
     /* create netlink socket */
     struct nl_sock* bye_sk = nl_socket_alloc();
@@ -341,6 +371,49 @@ void Kernel::free_nlmsg(void* arg)
 {
     struct nl_msg *msg = (struct nl_msg*) arg;
     nlmsg_free(msg);
+}
+
+void Kernel::save_kernel_data(struct call_data_buffer_s *data)
+{
+    /* Start a transaction */
+    int rc;
+    rc = sqlite3_exec(connection, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
+    check_sqlite_error(rc, connection);
+
+    /* Prepare the insert statement */
+    std::string insert_sql = "INSERT INTO kdata(pid, ppid, tgid, uid, symbol, data) VALUES(?, ?, ?, ?, ?, ?);";
+    sqlite3_stmt* stmt;
+
+    rc = sqlite3_prepare_v2(connection, insert_sql.c_str(), -1, &stmt, nullptr);
+    check_sqlite_error(rc, connection);
+
+    /* Insert data into the table */
+    for (int i = 0; i < data->num; i++)
+    {
+        rc = sqlite3_bind_int(stmt, 1, data->data[i].pid);
+        check_sqlite_error(rc, connection);
+        rc = sqlite3_bind_int(stmt, 2, data->data[i].ppid);
+        check_sqlite_error(rc, connection);
+        rc = sqlite3_bind_int(stmt, 3, data->data[i].tgid);
+        check_sqlite_error(rc, connection);
+        rc = sqlite3_bind_int(stmt, 4, data->data[i].uid);
+        check_sqlite_error(rc, connection);
+        rc = sqlite3_bind_text(stmt, 5, data->data[i].symbol, -1, SQLITE_TRANSIENT);
+        check_sqlite_error(rc, connection);
+        rc = sqlite3_bind_text(stmt, 6, data->data[i].data, -1, SQLITE_TRANSIENT);
+        check_sqlite_error(rc, connection);
+
+        sqlite3_step(stmt);
+        sqlite3_reset(stmt);
+    }
+
+    /* Close transaction */
+    rc = sqlite3_exec(connection, "END TRANSACTION;", nullptr, nullptr, nullptr);
+    check_sqlite_error(rc, connection);
+    
+    Logger::Log(Enums::LogLevel::OUT, "Saved data to DB");
+    sqlite3_finalize(stmt);
+    return;
 }
 
 void Kernel::print_call_data_buffer(struct call_data_buffer_s *call_data_buffer)

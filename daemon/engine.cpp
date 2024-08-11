@@ -1,5 +1,6 @@
 #include "daemon/engine.hpp"
 #include "common/logger.hpp"
+#include "common/utils.hpp"
 #include "daemon/yara.hpp"
 #include "daemon/daemon.hpp"
 
@@ -87,15 +88,6 @@ void sha256_file(const std::string& filename, unsigned char* output)
     }
 
     EVP_MD_CTX_free(context);
-}
-
-void check_sqlite_error(int rc, sqlite3* db)
-{
-    if (rc != SQLITE_OK) {
-        std::cerr << "SQLite error: " << sqlite3_errmsg(db) << std::endl;
-        sqlite3_close(db);
-        exit(rc);
-    }
 }
 
 void Engine::scanSignature()

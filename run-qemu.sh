@@ -23,4 +23,3 @@ qemu-system-x86_64 \
     -k it \
     --enable-kvm \
     -s \
-    -vga std

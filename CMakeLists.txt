@@ -24,7 +24,7 @@ target_compile_options(av_daemon PRIVATE -Wall)
 
 # ================ cli ================
 
-file(GLOB CLI_SOURCES "cli/*.cpp" "common/*.cpp")
+file(GLOB CLI_SOURCES "cli/*.cpp" "common/*.cpp" "daemon/*.c")
 
 add_executable(cli ${CLI_SOURCES})
 
