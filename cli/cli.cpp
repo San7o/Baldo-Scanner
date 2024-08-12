@@ -21,9 +21,10 @@ Settings Cli::settings =
     false,
     false,
     true,
-    {},
-    {},
-    {},
+    "",
+    "",
+    "",
+    "",
     0,
 };
 
@@ -69,8 +70,8 @@ void Cli::Init(int argc, char** argv)
 void Cli::ParseArgs(int argc, char** argv)
 {
 
-    po::options_description generic("Generic options");
-    generic.add_options()
+    po::options_description generic_options("Generic options");
+    generic_options.add_options()
         ("help,h", "produce help message and exit")
         ("version,v", "print version information and exit");
 
@@ -93,19 +94,22 @@ void Cli::ParseArgs(int argc, char** argv)
         ("block-ip,b", po::value<std::string>(), "block an IPv4 address")
         ("unblock-ip,B", po::value<std::string>(), "unblock an IPv4 address");
 
-    po::options_description desc("Allowed options");
-    desc.add(generic)
-            .add(daemon_options)
-            .add(scan_options)
-            .add(firewall_options);
+    po::options_description sandbox_options("Sandbox Options");
+    sandbox_options.add_options()
+        ("sandbox,S", po::value<std::string>(), "execute a file in a sandboxed environment, format: name,arg1,arg2,...");
+
+    generic_options.add(daemon_options)
+           .add(scan_options)
+           .add(firewall_options)
+           .add(sandbox_options);
 
     po::variables_map vm;
-    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::store(po::parse_command_line(argc, argv, generic_options), vm);
     po::notify(vm);
 
     if (vm.count("help"))
     {
-        std::cout << desc << std::endl;
+        std::cout << generic_options << std::endl;
         exit(0);
     }
 
@@ -172,6 +176,16 @@ void Cli::ParseArgs(int argc, char** argv)
         std::string ip = vm["unblock-ip"].as<std::string>();
         Cli::settings.ip = inet_addr(ip.c_str()); /* Network byte order */
         Cli::settings.ipAction = Enums::IpAction::UNBLOCK;
+    }
+
+    if (vm.count("sandbox"))
+    {
+        std::string sandbox = vm["sandbox"].as<std::string>();
+        if (strcpy(Cli::settings.sandbox_data, sandbox.c_str()) == NULL)
+        {
+            perror("strcpy");
+            exit(1);
+        }
     }
 
     if (vm.count("type"))

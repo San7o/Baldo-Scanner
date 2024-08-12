@@ -1,11 +1,12 @@
 #include "daemon/daemon.hpp"
 #include "daemon/malware_db.hpp"
-#include "common/logger.hpp"
-#include "common/settings.hpp"
 #include "daemon/engine.hpp"
+#include "daemon/sandbox.hpp"
 #include "daemon/yara.hpp"
 #include "daemon/kernel.hpp"
 #include "common/banner.hpp"
+#include "common/logger.hpp"
+#include "common/settings.hpp"
 
 #include <unistd.h>
 #include <thread>
@@ -216,6 +217,11 @@ void Daemon::parse_settings(Settings settings, int fd)
         if (settings.ipAction != Enums::IpAction::NO_ACTION)
         {
             Kernel::send_ip_to_firewall(settings.ip, settings.ipAction);
+        }
+
+        if (strlen(settings.sandbox_data) > 0)
+        {
+            Sandbox::run_threaded_sandbox(settings.sandbox_data);
         }
 
         if (settings.update)
@@ -444,4 +450,5 @@ void Daemon::print_settings(Settings settings)
     Logger::Log(LogLevel::DEBUG, "Scan file: " + string(settings.scanFile));
     Logger::Log(LogLevel::DEBUG, "Yara rules path: " + string(settings.yaraRulesPath));
     Logger::Log(LogLevel::DEBUG, "Signatures path: " + string(settings.signaturesPath));
+    Logger::Log(LogLevel::DEBUG, "Sandbox data: " + string(settings.sandbox_data));
 }

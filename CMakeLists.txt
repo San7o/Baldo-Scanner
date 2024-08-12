@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.29.2)
 project("Antivirus" VERSION 0.1)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -17,7 +17,7 @@ target_include_directories(av_daemon PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include )
 
 target_link_libraries(av_daemon pthread boost_program_options
-        curl curlpp ssl crypto yara nl-3 nl-genl-3)
+        curl curlpp ssl crypto yara nl-3 nl-genl-3 seccomp)
 
 target_compile_options(av_daemon PRIVATE -Wall)
 

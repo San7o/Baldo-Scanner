@@ -39,6 +39,7 @@ struct Settings
      char scanFile[MAX_PATH];
      char yaraRulesPath[MAX_PATH];
      char signaturesPath[MAX_PATH];
+     char sandbox_data[MAX_PATH];
      uint32_t ip;
 } __attribute__((packed)); // This is to ensure that the struct
                            // is packed and no padding is added

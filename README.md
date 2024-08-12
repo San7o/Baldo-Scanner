@@ -1,5 +1,9 @@
 # linux-kernel-antivirus
 
+## What is this?
+
+This project features a straightforward yet effective antivirus application written in C++ specifically designed for Linux operating systems. It incorporates static malware analysis capabilities, allowing it to scan files and executables for known malware signatures before they are executed or accessed, and to scan for YARA rules you can provide. A database of signatures and rules is autocatically fetched from [abuse.ch](https://abuse.ch/), ensuring your system is safeguarded against the latest threats. The antivirus comes with a simple firewall to block network traffic on provided ips and a sandbox environment to run untrusted applications.
+
 ## Cli usage
 
 ```bash
@@ -25,6 +29,10 @@ Scan Options:
 Firewall options:
   -b [ --block-ip ] arg    block an IPv4 address
   -B [ --unblock-ip ] arg  unblock an IPv4 address
+
+Sandbox Options:
+  -S [ --sandbox ] arg     execute a file in a sandboxed environment, format:
+                           name,arg1,arg2,...
 ```
 
 ### Talk with the kernel module
@@ -44,20 +52,16 @@ echo "BYE"   > /dev/av_notify   # stop collecting data
 echo "3646206603" > /dev/av_firewall  # block ip (in network byte notation)
 ```
 
-## What is this?
-
-This project features a straightforward yet effective antivirus application written in C++ specifically designed for Linux operating systems. It incorporates static malware analysis capabilities, allowing it to scan files and executables for known malware signatures before they are executed or accessed, and to scan for YARA rules you can provide. A database of signatures and rules is autocatically fetched from [abuse.ch](https://abuse.ch/), ensuring your system is safeguarded against the latest threats. The antivirus comes with a simple firewall to block network traffic on provided ips.
-
 ### Structure
 
 The application is composed of:
 
-- A `kernel module`: This will hook into syscalls with `kprobes` based on user defined rules, and send an event to the user space daemon via `netlink`. A future implementation
+- A `kernel module`: This will hook into syscalls with `kprobes` based on user defined rules, and send an event to the user space daemon via `netlink` and/or `character devices`. A future implementation
 may use `eBPF` for hooking.
 
-- A `user space daemon`: An event driven daemon that listens for events from the kernel module, updates It's malware DB with online resources, spawns threads when analyzing with the analysis engine, sets iptables rules.
+- A `user space daemon`: An event driven daemon that listens for events from the kernel module, updates It's malware DB with online resources, spawns threads when analyzing with the analysis engine, sets iptables rules, runs processes in a sandbox environment. It logs the system calls into a DB.
 
-- A `Malware DB`: Collection of malware signatures, malicious IPs and `YARA` rules.
+- A `Malware DB`: Collection of malware signatures and `YARA` rules.
 
 - An `analysis engine`: Scans a file's signature and binary data based on `YARA` rules and
 signatures in the malware db.
@@ -88,6 +92,8 @@ Currently, the only supported platform is Linux.
 
 - `libnl` 3.8.0
 
+- `libseccomp`
+
 On `NixOS`, run:
 ```bash
 nix-shell
@@ -95,7 +101,7 @@ nix-shell
 
 On Ubuntu/debian:
 ```bash
-sudo apt install curl libboost1.81-dev libcurlpp-dev libyara-dev libnl-3-dev
+sudo apt install curl libboost1.81-dev libcurlpp-dev libyara-dev libnl-3-dev libseccomp-dev
 ```
 
 ## Building the project
