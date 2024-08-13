@@ -146,6 +146,12 @@ int Sandbox::sandboxed_process(void* arg)
         exit(1);
     }
 
+    if (unshare(CLONE_NEWUSER) == -1)
+    {
+        perror("unshare");
+        exit(1);
+    }
+
     /* Filter system calls */
     int ret;
     scmp_filter_ctx ctx;
