@@ -2,7 +2,7 @@
 
 ## What is this?
 
-This project features a straightforward yet effective antivirus application written in C++ specifically designed for Linux operating systems. It incorporates static malware analysis capabilities, allowing it to scan files and executables for known malware signatures before they are executed or accessed, and to scan for YARA rules you can provide. A database of signatures and rules is autocatically fetched from [abuse.ch](https://abuse.ch/), ensuring your system is safeguarded against the latest threats. The antivirus comes with a simple firewall to block network traffic on provided ips and a sandbox environment to run untrusted applications.
+This project features a straightforward yet effective antivirus application written in C++ specifically designed for Linux operating systems. It incorporates static malware analysis capabilities, allowing it to scan files and executables for known malware signatures before they are executed or accessed, and to scan for YARA rules you can provide. A database of signatures and rules is automatically fetched from [abuse.ch](https://abuse.ch/), ensuring your system is safeguarded against the latest threats. The antivirus comes with a simple firewall to block network traffic on provided ips and a sandbox environment to run untrusted applications.
 
 ## Cli usage
 
