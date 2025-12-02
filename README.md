@@ -2,7 +2,12 @@
 
 ## What is this?
 
-Baldo Scanner features a straightforward yet effective antivirus application written in C++ specifically designed for Linux operating systems. It incorporates static malware analysis capabilities, allowing it to scan files and executables for known malware signatures before they are executed or accessed, and to scan for YARA rules you can provide. A database of signatures and rules is automatically fetched from [abuse.ch](https://abuse.ch/), ensuring your system is safeguarded against the latest threats. The antivirus comes with a simple firewall to block network traffic on provided ips and a sandbox environment to run untrusted applications.
+Baldo Scanner is malware scanner for Linux systems. It can do static
+malware analysis by signature matching and Yara rules. A database of
+signatures and rules is automatically fetched from
+[abuse.ch](https://abuse.ch/). Baldo scanner also implements a simple
+firewall to block network traffic on provided ips, and a sandbox
+environment to run untrusted applications.
 
 ## Cli usage
 
