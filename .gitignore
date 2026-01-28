@@ -2,5 +2,7 @@ build/
 logs/
 docs/
 lib/
-linux/
+linux-src/
+linux-src.tar.xz
 *.img
+*.o

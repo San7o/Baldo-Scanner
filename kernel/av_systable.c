@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
+// Author:  Giovanni Santini
+// Mail:    giovanni.santini@proton.me
+// Github:  @San7o
+
 /*
  *   NOTE: This method does not work anymore on newer kernels.
  *   This file is kept for reference purposes only.

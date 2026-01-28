@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
+// Author:  Giovanni Santini
+// Mail:    giovanni.santini@proton.me
+// Github:  @San7o
+
 #include "av_firewall.h"
 
 DEFINE_READ_MOSTLY_HASHTABLE(av_blocked, AV_HASH_BITS);

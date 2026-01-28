@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: MIT
+// Author:  Giovanni Santini
+// Mail:    giovanni.santini@proton.me
+// Github:  @San7o
+
 #pragma once
 
 #include <string>
@@ -5,7 +10,7 @@
 
 #define STACK_SIZE (1024 * 1024)    /* Stack size for cloned child */
 
-namespace AV
+namespace baldo
 {
 
 namespace Sandbox
@@ -14,9 +19,10 @@ namespace Sandbox
 /**
  * @brief Data about the sandbox
  */
-struct app_data {
-    std::string program_name;
-    std::vector<std::string> arguments;
+struct app_data
+{
+  std::string program_name;
+  std::vector<std::string> arguments;
 };
 
 /**
@@ -48,7 +54,7 @@ void *thread_run_sandbox(void *data);
  *
  * @param arg The data from the sandbox
  */
-static int sandboxed_process(void* arg);
+int sandboxed_process(void* arg);
 
 /**
  * @brief Print the app_data struct
@@ -59,4 +65,4 @@ void print_data(struct Sandbox::app_data data);
 
 } // namespace Sandbox
 
-} // namespace AV
+} // namespace baldo

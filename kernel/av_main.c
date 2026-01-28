@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
+// Author:  Giovanni Santini
+// Mail:    giovanni.santini@proton.me
+// Github:  @San7o
+
 #include "av_main.h"
 #include "av_common.h"
 #include "av_kprobe.h"

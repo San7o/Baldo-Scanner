@@ -1,12 +1,17 @@
-#include "daemon/daemon.hpp"
-#include "daemon/malware_db.hpp"
-#include "daemon/engine.hpp"
-#include "daemon/sandbox.hpp"
-#include "daemon/yara.hpp"
-#include "daemon/kernel.hpp"
-#include "common/banner.hpp"
-#include "common/logger.hpp"
-#include "common/settings.hpp"
+// SPDX-License-Identifier: MIT
+// Author:  Giovanni Santini
+// Mail:    giovanni.santini@proton.me
+// Github:  @San7o
+
+#include <baldo/daemon/daemon.hpp>
+#include <baldo/daemon/malware_db.hpp>
+#include <baldo/daemon/engine.hpp>
+#include <baldo/daemon/sandbox.hpp>
+#include <baldo/daemon/yara.hpp>
+#include <baldo/daemon/kernel.hpp>
+#include <baldo/common/banner.hpp>
+#include <baldo/common/logger.hpp>
+#include <baldo/common/settings.hpp>
 
 #include <unistd.h>
 #include <thread>
@@ -17,7 +22,11 @@
 #include <yara.h>
 #include <sys/socket.h>
 
-using namespace AV;
+using namespace baldo;
+
+//
+// Static members
+//
 
 const int Daemon::MAX_THREADS = std::thread::hardware_concurrency();
 const std::string Daemon::version = VERSION;
@@ -29,426 +38,448 @@ std::vector<pthread_t> Daemon::threads = {};
 std::mutex Daemon::threads_mutex;
 std::mutex Daemon::available_threads_mutex;
 
+//
+// Function implementations
+//
+
 void Daemon::Init()
 {
-    banner();
+  banner();
 
-    Logger::Init();
-    Logger::Log(Enums::LogLevel::INFO, "Daemon starting");
+  Logger::Init();
+  Logger::Log(Enums::LogLevel::INFO, "Daemon starting");
 
-    if (!std::filesystem::exists(PROGRAM_PATH))
+  if (!std::filesystem::exists(PROGRAM_PATH))
+  {
+    if (std::filesystem::create_directories(PROGRAM_PATH) == false)
     {
-        if (std::filesystem::create_directories(PROGRAM_PATH) == false)
-        {
-            perror("create_directory");
-            exit(1);
-        }
+      perror("create_directory");
+      exit(1);
     }
+  }
 
-    fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd == -1)
-    {
-        perror("socket");
-        exit(1);
-    }
+  fd = socket(AF_UNIX, SOCK_STREAM, 0);
+  if (fd == -1)
+  {
+    perror("socket");
+    exit(1);
+  }
 
-    if (std::filesystem::exists(SOCK_PATH))
-    {
-        std::filesystem::remove(SOCK_PATH);
-    }
+  if (std::filesystem::exists(SOCK_PATH))
+  {
+    std::filesystem::remove(SOCK_PATH);
+  }
     
-    struct sockaddr_un addr;
-    addr.sun_family = AF_UNIX;
-    if (strcpy(addr.sun_path, SOCK_PATH) == NULL)
-    {
-        perror("strcpy");
-        exit(1);
-    }
+  struct sockaddr_un addr;
+  addr.sun_family = AF_UNIX;
+  if (strcpy(addr.sun_path, SOCK_PATH) == NULL)
+  {
+    perror("strcpy");
+    exit(1);
+  }
 
-    if (bind(fd, (struct sockaddr*) &addr, sizeof(addr)) == -1)
-    {
-        perror("bind");
-        exit(1);
-    }
+  if (bind(fd, (struct sockaddr*) &addr, sizeof(addr)) == -1)
+  {
+    perror("bind");
+    exit(1);
+  }
 
-    struct sigaction sa;
-    sa.sa_handler = set_graceful_shutdown;
-    sa.sa_flags = 0;
-    sigemptyset(&sa.sa_mask);
-    sigaction(SIGINT, &sa, NULL);               // graceful shutdown
+  struct sigaction sa;
+  sa.sa_handler = set_graceful_shutdown;
+  sa.sa_flags = 0;
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGINT, &sa, NULL);               // graceful shutdown
 
-    struct sigaction sterm;
-    sterm.sa_handler = hard_shutdown;
-    sterm.sa_flags = 0;
-    sigemptyset(&sterm.sa_mask);
-    if (sigaction(SIGTERM, &sterm, NULL) == -1) // hard shutdown
-    {
-        perror("sigaction");
-        exit(1);
-    }
-    if (sigaction(SIGQUIT, &sterm, NULL) == -1) // hard shutdown
-    {
-        perror("sigaction");
-        exit(1);
-    }
+  struct sigaction sterm;
+  sterm.sa_handler = hard_shutdown;
+  sterm.sa_flags = 0;
+  sigemptyset(&sterm.sa_mask);
+  if (sigaction(SIGTERM, &sterm, NULL) == -1) // hard shutdown
+  {
+    perror("sigaction");
+    exit(1);
+  }
+  if (sigaction(SIGQUIT, &sterm, NULL) == -1) // hard shutdown
+  {
+    perror("sigaction");
+    exit(1);
+  }
 
-    if (yr_initialize() != ERROR_SUCCESS)
-    {
-        perror("yr_initialize");
-        exit(1);
-    }
+  if (yr_initialize() != ERROR_SUCCESS)
+  {
+    perror("yr_initialize");
+    exit(1);
+  }
 
-    Kernel::Init();
+  Kernel::Init();
 
-    Logger::Log(Enums::LogLevel::INFO, "Daemon started");
+  Logger::Log(Enums::LogLevel::INFO, "Daemon started");
 }
 
 void Daemon::listen_socket()
 {
-    if (listen(fd, 5) == -1)
+  if (listen(fd, 5) == -1)
+  {
+    perror("listen");
+    close(fd);
+    exit(1);
+  }
+  int new_fd = accept(fd, NULL, NULL);
+  if (new_fd == -1)
+  {
+    perror("accept");
+  }
+
+  if (!Daemon::stop)
+  {  
+    pthread_t thread;
+    pthread_attr_t attr;
+    if (pthread_attr_init(&attr) != 0)
     {
-        perror("listen");
-        close(fd);
-        exit(1);
+      perror("pthread_attr_init");
     }
-    int new_fd = accept(fd, NULL, NULL);
-    if (new_fd == -1)
+
+    if (pthread_create(&thread, &attr,
+                       thread_handle_connection, &new_fd) != 0)
     {
-        perror("accept");
+      perror("pthread_create");
+      exit(1);
     }
-
-    if (!Daemon::stop) {
-
-        pthread_t thread;
-        pthread_attr_t attr;
-        if (pthread_attr_init(&attr) != 0)
-        {
-            perror("pthread_attr_init");
-        }
-
-        if (pthread_create(&thread, &attr, thread_handle_connection, &new_fd) != 0)
-        {
-            perror("pthread_create");
-            exit(1);
-        }
-        Daemon::threads_mutex.lock();
-        threads.push_back(thread);
-        Daemon::threads_mutex.unlock();
-
-        if (pthread_attr_destroy(&attr))
-        {
-            perror("pthread_attr_destroy");
-        }
+    Daemon::threads_mutex.lock();
+    threads.push_back(thread);
+    Daemon::threads_mutex.unlock();
+    
+    if (pthread_attr_destroy(&attr))
+    {
+      perror("pthread_attr_destroy");
     }
+  }
+
+  return;
 }
 
-void Daemon::hard_shutdown(int signum)
+void Daemon::hard_shutdown([[maybe_unused]] int signum)
 {
-    Logger::Log(Enums::LogLevel::INFO, "Daemon shutting down hard");
+  Logger::Log(Enums::LogLevel::INFO, "Daemon shutting down hard");
 
-    if (yr_finalize() != ERROR_SUCCESS)
+  if (yr_finalize() != ERROR_SUCCESS)
+  {
+    perror("yr_finalize");
+    exit(1);
+  }
+
+  Kernel::stop_kernel_netlink();
+
+  for (auto thread : threads)
+  {
+    if (pthread_cancel(thread) != 0)
     {
-        perror("yr_finalize");
-        exit(1);
+      perror("pthread_cancel");
+      exit(1);
     }
+  }
+  exit(0);
 
-    Kernel::stop_kernel_netlink();
-
-    for (auto thread : threads)
-    {
-        if (pthread_cancel(thread) != 0)
-        {
-            perror("pthread_cancel");
-            exit(1);
-        }
-    }
-    exit(0);
+  return;
 }
 
 /* Do not add other routines here */
-void Daemon::set_graceful_shutdown(int signum)
+void Daemon::set_graceful_shutdown([[maybe_unused]] int signum)
 {
-    Daemon::stop = true;
+  Daemon::stop = true;
+  return;
 }
 
 void Daemon::graceful_shutdown()
 {
-    Logger::Log(Enums::LogLevel::INFO, "Daemon shutting down gracefully");
+  Logger::Log(Enums::LogLevel::INFO,
+              "Daemon shutting down gracefully");
 
-    if (yr_finalize() != ERROR_SUCCESS)
+  if (yr_finalize() != ERROR_SUCCESS)
+  {
+    perror("yr_finalize");
+    exit(1);
+  }
+
+  Kernel::stop_kernel_netlink();
+
+  for (auto thread : threads)
+  {
+    if (pthread_join(thread, NULL) != 0)
     {
-        perror("yr_finalize");
-        exit(1);
+      perror("pthread_join");
+      exit(1);
     }
+  }
 
-    Kernel::stop_kernel_netlink();
-
-    for (auto thread : threads)
-    {
-        if (pthread_join(thread, NULL) != 0)
-        {
-            perror("pthread_join");
-            exit(1);
-        }
-    }
-
-    exit(0);
+  exit(0);
+  return;
 }
 
 void Daemon::parse_settings(Settings settings, int fd)
 {
-    if (settings.quit)
-    {
-        graceful_shutdown();
+  if (settings.quit)
+  {
+    graceful_shutdown();
+  }
+  if (settings.force_quit)
+  {
+    hard_shutdown(0);
+  }
+  else if (settings.version)
+  {
+    if (send(fd, VERSION, 7, 0) == -1) {
+      perror("send");
+      pthread_exit(NULL);
     }
-    if (settings.force_quit)
+  }
+  else
+  { 
+    if (settings.ipAction != Enums::IpAction::NO_ACTION)
     {
-        hard_shutdown(0);
+      Kernel::send_ip_to_firewall(settings.ip, settings.ipAction);
     }
-    else if (settings.version)
+
+    if (strlen(settings.sandbox_data) > 0)
     {
-        if (send(fd, VERSION, 7, 0) == -1) {
-            perror("send");
-            pthread_exit(NULL);
-        }
+      Sandbox::run_threaded_sandbox(settings.sandbox_data);
     }
-    else
-    { 
-        if (settings.ipAction != Enums::IpAction::NO_ACTION)
-        {
-            Kernel::send_ip_to_firewall(settings.ip, settings.ipAction);
-        }
 
-        if (strlen(settings.sandbox_data) > 0)
-        {
-            Sandbox::run_threaded_sandbox(settings.sandbox_data);
-        }
+    if (settings.update)
+    {
+      MalwareDB db(DB_PATH);
+      db.update();
+    }
 
-        if (settings.update)
-        {
-            MalwareDB db(DB_PATH);
-            db.update();
-        }
-
-        if (strlen(settings.signaturesPath) > 0)
-        {
-            MalwareDB db(DB_PATH);
-            db.load(settings.signaturesPath);
-        }
+    if (strlen(settings.signaturesPath) > 0)
+    {
+      MalwareDB db(DB_PATH);
+      db.load(settings.signaturesPath);
+    }
         
-        if (strlen(settings.yaraRulesPath) > 0 )
-        {
-            Yara::CompileRules(settings.yaraRulesPath);
-        }
-
-        if (settings.scan)
-        {   
-            scan_files(settings.scanFile, settings.scanType, settings.multithread);
-        }
+    if (strlen(settings.yaraRulesPath) > 0 )
+    {
+      Yara::CompileRules(settings.yaraRulesPath);
     }
+
+    if (settings.scan)
+    {   
+      scan_files(settings.scanFile, settings.scanType,
+                 settings.multithread);
+    }
+  }
+
+  return;
 }
 
 void Daemon::produce_report(ScanReport* report)
 {
-    std::cout << std::flush;
-    if (report->report.length() > 0)
-    {
-        Logger::Log(Enums::LogLevel::REPORT, "MALWARE DETECTED\n" + report->report);
-    }
-    else
-    {
-        Logger::Log(Enums::LogLevel::REPORT, "No malware detected");
-    }
-
-    delete report;
+  std::cout << std::flush;
+  if (report->report.length() > 0)
+  {
+    Logger::Log(Enums::LogLevel::REPORT,
+                "MALWARE DETECTED\n" + report->report);
+  }
+  else
+  {
+    Logger::Log(Enums::LogLevel::REPORT, "No malware detected");
+  }
+  
+  delete report;
 }
 
-void Daemon::scan_files(std::string scanFile, Enums::ScanType scanType, bool multithreaded)
+void Daemon::scan_files(std::string scanFile,
+                        Enums::ScanType scanType,
+                        bool multithreaded)
 { 
-    if (!std::filesystem::exists(scanFile))
+  if (!std::filesystem::exists(scanFile))
+  {
+    Logger::Log(Enums::LogLevel::ERROR,
+                "File does not exist: " + scanFile);
+    return;
+  }
+
+  if (!std::filesystem::is_directory(scanFile))
+  {
+    ScanReport *report = new ScanReport{"", std::mutex()};
+    ScanRequest* request = new ScanRequest{scanFile, scanType, report};
+
+    pthread_t thread;
+    pthread_attr_t attr;
+    if (pthread_attr_init(&attr) != 0)
     {
-        Logger::Log(Enums::LogLevel::ERROR, "File does not exist: " + scanFile);
-        return;
+      perror("pthread_attr_init");
     }
 
-    if (!std::filesystem::is_directory(scanFile))
+    if (pthread_create(&thread, &attr, thread_scan, (void*) request) != 0)
     {
-        ScanReport *report = new ScanReport{"", std::mutex()};
-        ScanRequest* request = new ScanRequest{scanFile, scanType, report};
-
-        pthread_t thread;
-        pthread_attr_t attr;
-        if (pthread_attr_init(&attr) != 0)
-        {
-            perror("pthread_attr_init");
-        }
-
-        if (pthread_create(&thread, &attr, thread_scan, (void*) request) != 0)
-        {
-            perror("pthread_create");
-            exit(1);
-        }
-
-        if (pthread_join(thread, NULL) != 0)
-        {
-            perror("pthread_join");
-            exit(1);
-        }
-
-        produce_report(report);
-        return;
+      perror("pthread_create");
+      exit(1);
     }
 
-    Daemon::available_threads_mutex.lock();
-
-    if (!multithreaded)
+    if (pthread_join(thread, NULL) != 0)
     {
-        Daemon::available_threads = 1;
-    }
-    else
-    {
-        Daemon::available_threads = MAX_THREADS;
-
-        if (Daemon::available_threads < 1)
-        {
-            Daemon::available_threads = 1;
-        }
+      perror("pthread_join");
+      exit(1);
     }
     
-    Daemon::available_threads_mutex.unlock();
-
-    struct timespec tim;
-    tim.tv_sec = 0;
-    tim.tv_nsec = 1000000;
-
-    ScanReport *report = new ScanReport{"", std::mutex()};
-    std::vector<pthread_t> scan_threads;
-
-    for (auto file : std::filesystem::recursive_directory_iterator(scanFile))
-    {
-        if (Daemon::stop) break;
-
-        if (std::filesystem::is_directory(file)) continue;
-
-        Daemon::available_threads_mutex.lock();
-        while(available_threads == 0)
-        {
-            Daemon::available_threads_mutex.unlock();
-            nanosleep(&tim, NULL);
-            Daemon::available_threads_mutex.lock();
-        }
-
-        ScanRequest* request = new ScanRequest{file.path(), scanType, report};
-        available_threads--;
-        
-        pthread_t thread;
-        pthread_attr_t attr;
-        if (pthread_attr_init(&attr) != 0)
-        {
-            perror("pthread_attr_init");
-        }
-
-        if (pthread_create(&thread, &attr, thread_scan, (void*) request) != 0)
-        {
-            perror("pthread_create");
-            exit(1);
-        }
-        scan_threads.push_back(thread);
-
-        Daemon::available_threads_mutex.unlock();
-    }
-
-    for (auto thread : scan_threads)
-    {
-        if (pthread_join(thread, NULL) != 0)
-        {
-            perror("pthread_join");
-            exit(1);
-        }
-    }
-
     produce_report(report);
+    return;
+  }
+
+  Daemon::available_threads_mutex.lock();
+
+  if (!multithreaded)
+  {
+    Daemon::available_threads = 1;
+  }
+  else
+  {
+    Daemon::available_threads = MAX_THREADS;
+    
+    if (Daemon::available_threads < 1)
+    {
+      Daemon::available_threads = 1;
+    }
+  }
+    
+  Daemon::available_threads_mutex.unlock();
+
+  struct timespec tim;
+  tim.tv_sec = 0;
+  tim.tv_nsec = 1000000;
+  
+  ScanReport *report = new ScanReport{"", std::mutex()};
+  std::vector<pthread_t> scan_threads;
+
+  for (auto file : std::filesystem::recursive_directory_iterator(scanFile))
+  {
+    if (Daemon::stop) break;
+
+    if (std::filesystem::is_directory(file)) continue;
+
+    Daemon::available_threads_mutex.lock();
+    while(available_threads == 0)
+    {
+      Daemon::available_threads_mutex.unlock();
+      nanosleep(&tim, NULL);
+      Daemon::available_threads_mutex.lock();
+    }
+
+    ScanRequest* request = new ScanRequest{file.path(), scanType, report};
+    available_threads--;
+        
+    pthread_t thread;
+    pthread_attr_t attr;
+    if (pthread_attr_init(&attr) != 0)
+    {
+      perror("pthread_attr_init");
+    }
+
+    if (pthread_create(&thread, &attr, thread_scan, (void*) request) != 0)
+    {
+      perror("pthread_create");
+      exit(1);
+    }
+    scan_threads.push_back(thread);
+
+    Daemon::available_threads_mutex.unlock();
+  }
+
+  for (auto thread : scan_threads)
+  {
+    if (pthread_join(thread, NULL) != 0)
+    {
+      perror("pthread_join");
+      exit(1);
+    }
+  }
+
+  produce_report(report);
+  return;
 }
 
 void Daemon::close_fd(void* arg)
 {
-    int *fd = (int*) arg;
-    if (close(*fd) == -1)
-    {
-        perror("close");
-    }
+  int *fd = (int*) arg;
+  if (close(*fd) == -1)
+  {
+    perror("close");
+  }
+  
+  return;
 }
 
 void *Daemon::thread_handle_connection(void* arg)
 {
-    int fd = *(int*) arg;
+  int fd = *(int*) arg;
 
-    pthread_cleanup_push(close_fd, arg);
+  pthread_cleanup_push(close_fd, arg);
 
-    sigset_t set;
-    sigemptyset(&set);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGTERM);
-    sigaddset(&set, SIGQUIT);
-    if (pthread_sigmask(SIG_SETMASK, &set, NULL) != 0)
-    {
-        perror("pthread_sigmask");
-        exit(1);
-    }
+  sigset_t set;
+  sigemptyset(&set);
+  sigaddset(&set, SIGINT);
+  sigaddset(&set, SIGTERM);
+  sigaddset(&set, SIGQUIT);
+  if (pthread_sigmask(SIG_SETMASK, &set, NULL) != 0)
+  {
+    perror("pthread_sigmask");
+    exit(1);
+  }
 
-    struct Settings settings;
-    if (recv(fd, &settings, sizeof(Settings), 0) == -1)
-    {
-        perror("recv");
-        pthread_exit(NULL);
-    }
+  struct Settings settings;
+  if (recv(fd, &settings, sizeof(Settings), 0) == -1)
+  {
+    perror("recv");
+    pthread_exit(NULL);
+  }
 
-    Logger::Log(Enums::LogLevel::INFO, "Connection received");
-    print_settings(settings);
+  Logger::Log(Enums::LogLevel::INFO, "Connection received");
+  print_settings(settings);
 
-    parse_settings(settings, fd);
+  parse_settings(settings, fd);
 
-    pthread_cleanup_pop(1);
-    return NULL;
+  pthread_cleanup_pop(1);
+  return NULL;
 }
 
 void Daemon::free_request(void* arg)
 {
-    ScanRequest* request = (ScanRequest*) arg;
-    delete request;
+  ScanRequest* request = (ScanRequest*) arg;
+  delete request;
 }
 
 void *Daemon::thread_scan(void* arg)
 {
-    pthread_cleanup_push(free_request, arg);
+  pthread_cleanup_push(free_request, arg);
 
-    ScanRequest* request = (ScanRequest*) arg;
-    Logger::Log(Enums::LogLevel::OUT, "Scanning file: " + request->filePath);
+  ScanRequest* request = (ScanRequest*) arg;
+  Logger::Log(Enums::LogLevel::OUT, "Scanning file: " + request->filePath);
 
-    Engine engine(request->filePath, request->report);
+  Engine engine(request->filePath, request->report);
 
-    engine.scan(request->scanType);
+  engine.scan(request->scanType);
 
-    Daemon::available_threads_mutex.lock();
-    Daemon::available_threads++;
-    Daemon::available_threads_mutex.unlock();
+  Daemon::available_threads_mutex.lock();
+  Daemon::available_threads++;
+  Daemon::available_threads_mutex.unlock();
 
-    pthread_cleanup_pop(1);
-    return NULL;
+  pthread_cleanup_pop(1);
+  return NULL;
 }
 
 void Daemon::print_settings(Settings settings)
 {
-    using namespace AV::Enums;
-    using namespace std;
-    Logger::Log(LogLevel::DEBUG, "Scan: "      + to_string(settings.scan));
-    Logger::Log(LogLevel::DEBUG, "Scan type: " + to_string(static_cast<int>(settings.scanType)));
-    Logger::Log(LogLevel::DEBUG, "Update: "    + to_string(settings.update));
-    Logger::Log(LogLevel::DEBUG, "Version: "   + to_string(settings.version));
-    Logger::Log(LogLevel::DEBUG, "Quit: "      + to_string(settings.quit));
-    Logger::Log(LogLevel::DEBUG, "Multithread: " + to_string(settings.multithread));
-    Logger::Log(LogLevel::DEBUG, "Scan file: " + string(settings.scanFile));
-    Logger::Log(LogLevel::DEBUG, "Yara rules path: " + string(settings.yaraRulesPath));
-    Logger::Log(LogLevel::DEBUG, "Signatures path: " + string(settings.signaturesPath));
-    Logger::Log(LogLevel::DEBUG, "Sandbox data: " + string(settings.sandbox_data));
+  using namespace baldo::Enums;
+  using namespace std;
+  Logger::Log(LogLevel::DEBUG, "Scan: "      + to_string(settings.scan));
+  Logger::Log(LogLevel::DEBUG, "Scan type: " + to_string(static_cast<int>(settings.scanType)));
+  Logger::Log(LogLevel::DEBUG, "Update: "    + to_string(settings.update));
+  Logger::Log(LogLevel::DEBUG, "Version: "   + to_string(settings.version));
+  Logger::Log(LogLevel::DEBUG, "Quit: "      + to_string(settings.quit));
+  Logger::Log(LogLevel::DEBUG, "Multithread: " + to_string(settings.multithread));
+  Logger::Log(LogLevel::DEBUG, "Scan file: " + string(settings.scanFile));
+  Logger::Log(LogLevel::DEBUG, "Yara rules path: " + string(settings.yaraRulesPath));
+  Logger::Log(LogLevel::DEBUG, "Signatures path: " + string(settings.signaturesPath));
+  Logger::Log(LogLevel::DEBUG, "Sandbox data: " + string(settings.sandbox_data));
 }

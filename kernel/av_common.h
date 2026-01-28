@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
+// Author:  Giovanni Santini
+// Mail:    giovanni.santini@proton.me
+// Github:  @San7o
+
 #ifndef _AV_COMMON_H
 #define _AV_COMMON_H
 
@@ -22,19 +27,19 @@ extern spinlock_t av_data_lock;
  * where we can take data from */
 struct call_data
 {
-    int pid;                        /* process id */
-    int ppid;                       /* parent process id, current->real_parent->pid */
-    int tgid;                       /* thread group id */
-    unsigned int uid;               /* user id */
-    char symbol[MAX_SYMBOL_SIZE]; 
-    char data[MAX_STRING_SIZE];
+  int pid;                        /* process id */
+  int ppid;                       /* parent process id, current->real_parent->pid */
+  int tgid;                       /* thread group id */
+  unsigned int uid;               /* user id */
+  char symbol[MAX_SYMBOL_SIZE]; 
+  char data[MAX_STRING_SIZE];
 } __attribute__( ( packed ) );      /* This is to ensure that the struct
                                      * is packed and no padding is added */
 
 struct call_data_buffer_s
 {
-    int num;                        /* Number of elements in the buffer */
-    struct call_data data[MAX_DATA_BUFFER_SIZE];
+  int num;                        /* Number of elements in the buffer */
+  struct call_data data[MAX_DATA_BUFFER_SIZE];
 } __attribute__( ( packed ) );
 
 extern struct call_data_buffer_s *call_data_buffer;

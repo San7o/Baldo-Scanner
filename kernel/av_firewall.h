@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
+// Author:  Giovanni Santini
+// Mail:    giovanni.santini@proton.me
+// Github:  @San7o
+
 #ifndef _AV_FIREWALL_H
 #define _AV_FIREWALL_H
 

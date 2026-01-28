@@ -3,12 +3,11 @@
 // Mail:    giovanni.santini@proton.me
 // Github:  @San7o
 
-#include <baldo/cli/cli.hpp>
+#pragma once
 
-using namespace baldo; 
-
-int main(int argc, char** argv)
+namespace baldo
 {
-  Cli::Init(argc, argv);
-  return 0;
+  
+void banner();
+
 }

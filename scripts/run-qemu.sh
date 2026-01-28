@@ -1,5 +1,9 @@
 #! /bin/sh
 
+set -e
+
+KERNEL=linux.img
+
 # "-kernel" specifies the kernel image
 # "-m" sets the amount of memory
 # "-drive" specifies the disk image
@@ -15,11 +19,11 @@
 # -S: freeze CPU at startup. Waits for gdb to connect.
 #     You must type 'c' in the monitor to start execution
 qemu-system-x86_64 \
-    -kernel linux/arch/x86/boot/bzImage \
+    -kernel linux-src/arch/x86/boot/bzImage \
     -m 3G \
-    -drive file=qemu-image.img,index=0,media=disk,format=raw \
+    -drive file=$KERNEL,index=0,media=disk,format=raw \
     -chardev qemu-vdagent,id=ch1,name=vdagent,clipboard=on \
     -append "nokaslr root=/dev/sda debug rw console=ttyS0" \
     -k it \
     --enable-kvm \
-    -s \
+    -s

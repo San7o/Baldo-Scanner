@@ -1,8 +1,13 @@
-#include "common/banner.hpp"
+// SPDX-License-Identifier: MIT
+// Author:  Giovanni Santini
+// Mail:    giovanni.santini@proton.me
+// Github:  @San7o
+
+#include <baldo/common/banner.hpp>
 
 #include <iostream>
 
-void banner()
+void baldo::banner()
 {
     std::cout <<
 "  _   _   __      ___                 \n"

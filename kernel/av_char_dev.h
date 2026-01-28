@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
+// Author:  Giovanni Santini
+// Mail:    giovanni.santini@proton.me
+// Github:  @San7o
+
 #ifndef _AV_CHAR_DEV_H
 #define _AV_CHAR_DEV_H
 
@@ -27,7 +32,10 @@ extern struct cdev av_notify_cdev;
 extern const struct file_operations av_firewall_ops;
 extern const struct file_operations av_notify_ops;
 
-ssize_t av_firewall_write(struct file *file, const char __user *buf, size_t count, loff_t *offset);
+ssize_t av_firewall_write(struct file *file,
+                          const char __user *buf,
+                          size_t count,
+                          loff_t *offset);
 
 /* Data structure to hold the data to send during notify_read */
 struct notify_data {
@@ -38,7 +46,10 @@ struct notify_data {
 /* Copies the data from the global data buffer to notify_data->buffer */
 int av_notify_open(struct inode *inode, struct file *file);
 
-ssize_t av_notify_read(struct file *file, char __user *buf, size_t count, loff_t *offset);
+ssize_t av_notify_read(struct file *file,
+                       char __user *buf,
+                       size_t count,
+                       loff_t *offset);
 
 /**
  * @brief Write to the notify device
@@ -52,7 +63,10 @@ ssize_t av_notify_read(struct file *file, char __user *buf, size_t count, loff_t
  *   - Example: echo "BYE" > /dev/av_notify
  * - Anything else: Returns 0
  */
-ssize_t av_notify_write(struct file *file, const char __user *buf, size_t count, loff_t *offset);
+ssize_t av_notify_write(struct file *file,
+                        const char __user *buf,
+                        size_t count,
+                        loff_t *offset);
 
 char *av_serialize_call_data_buffer(void);
 char *av_serialize_call_data(struct call_data data);

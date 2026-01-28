@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
+// Author:  Giovanni Santini
+// Mail:    giovanni.santini@proton.me
+// Github:  @San7o
+
 #ifdef AV_CHAR_DEV
 
 #include <linux/uaccess.h>
@@ -171,7 +176,7 @@ char *av_serialize_call_data_buffer()
     for (int i = 0; i < call_data_buffer->num; i++)
     {
         char* serialized = av_serialize_call_data(call_data_buffer->data[i]);
-        sprintf(buffer, "%s%s", buffer, serialized);
+        sprintf(buffer, "%s", serialized);
         kfree(serialized);
     }
 
