@@ -176,12 +176,12 @@ or `BALDO_CHAR_DEV`.
 ```bash
 # Data Collection
 
-echo "HELLO" > /dev/av_notify   # start collecting data
-echo "FETCH" > /dev/av_notify   # copy the data (do this before reading)
-cat /dev/av_notify              # read the data
-echo "BYE"   > /dev/av_notify   # stop collecting data
+echo "HELLO" > /dev/baldo_notify   # start collecting data
+echo "FETCH" > /dev/baldo_notify   # copy the data (do this before reading)
+cat /dev/baldo_notify              # read the data
+echo "BYE"   > /dev/baldo_notify   # stop collecting data
 
 # Firewall
 
-echo "3646206603" > /dev/av_firewall  # block ip (in network byte notation)
+echo "3646206603" > /dev/baldo_firewall  # block ip (in network byte notation)
 ```
