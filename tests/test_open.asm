@@ -1,5 +1,5 @@
 SECTION .data
-filename   db   "shell.nix", 0x0
+filename   db   "LICENSE", 0x0
 
 SECTION .bss
 file_data:    RESB    255

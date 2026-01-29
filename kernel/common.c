@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+
+// Author:  Giovanni Santini
+// Mail:    giovanni.santini@proton.me
+// Github:  @San7o
+
+#include "common.h"
+
+#include <linux/slab.h>
+
+DEFINE_SPINLOCK(baldo_ready_lock);
+bool send_ready = false;
+
+/* Spinlock protecting the variable to send
+ * Note that "spin_lock_irqsave" is used to disable
+ * interrupts while holding the lock, "spin_lock" does not. */
+DEFINE_SPINLOCK(baldo_data_lock);
+
+struct call_data_buffer_s *call_data_buffer;
