@@ -18,8 +18,9 @@
 #include <netlink/msg.h>
 
 #include <baldo/common/settings.hpp>
+#include <baldo/daemon/daemon.hpp>
 
-#define KERNEL_DB "/etc/baldo.db"
+#define KERNEL_DB BALDO_DIR "baldo.db"
 #define MAX_STRING_SIZE 1024
 #define MAX_SYMBOL_SIZE 80      /* found experimentally */
 #define MAX_DATA_BUFFER_SIZE 5  /* the limit of a netlink message
@@ -52,46 +53,46 @@ struct call_data_buffer_s
  * using the libnl library. The kernel registers a new
  * netlink family to handle the connection.
  */
-#define AV_FAMILY_NAME "AV_GENL"
-#define NETLINK_AV_GROUP 1
+#define BALDO_FAMILY_NAME "BALDO_GENL"
+#define NETLINK_BALDO_GROUP 1
 
 /*
  * The family is registered with the following commands:
- * - AV_HELLO_CMD: starts the connection, the kernel begins to
+ * - BALDO_HELLO_CMD: starts the connection, the kernel begins to
  *                 capture information regarding registered
  *                 systemcalls.
- * - AV_BYE_CMD:   closes the connection, the kernel stops capturing
+ * - BALDO_BYE_CMD:   closes the connection, the kernel stops capturing
  *                 information.
- * - AV_FETCH_CMD: fetches the information captured by the kernel.
+ * - BALDO_FETCH_CMD: fetches the information captured by the kernel.
  */
 enum
 {
-  AV_UNSPEC_CMD,     /* no specific message     */
-  AV_HELLO_CMD,      /* start capturing         */
-  AV_BYE_CMD,        /* stop capturing          */
-  AV_FETCH_CMD,      /* fetch data              */
-  AV_BLOCK_IP_CMD,   /* submit an IP to block   */
-  AV_UNBLOCK_IP_CMD, /* submit an IP to unblock */
-  __AV_MAX_CMD,
+  BALDO_UNSPEC_CMD,     /* no specific message     */
+  BALDO_HELLO_CMD,      /* start capturing         */
+  BALDO_BYE_CMD,        /* stop capturing          */
+  BALDO_FETCH_CMD,      /* fetch data              */
+  BALDO_BLOCK_IP_CMD,   /* submit an IP to block   */
+  BALDO_UNBLOCK_IP_CMD, /* submit an IP to unblock */
+  __BALDO_MAX_CMD,
 };
-#define AV_MAX_CMD (__AV_MAX_CMD - 1) /* Max value of the enum */
+#define BALDO_MAX_CMD (__BALDO_MAX_CMD - 1) /* Max value of the enum */
 
 /*
  * The family also defines the followings attributes:
- * - AV_MSG: a null terminated string
+ * - BALDO_MSG: a null terminated string
  *
  * Attributes are sent as payload to a message and
  * a command.
  */
 enum
 {
-  AV_UNSPEC,
-  AV_MSG,   /* String message */
-  AV_IPv4,  /* IPv4 address, u32 */
-  AV_DATA,  /* Data buffer */
-  __AV_MAX,
+  BALDO_UNSPEC,
+  BALDO_MSG,   /* String message */
+  BALDO_IPv4,  /* IPv4 address, u32 */
+  BALDO_DATA,  /* Data buffer */
+  __BALDO_MAX,
 };
-#define AV_MAX (__AV_MAX - 1) /* Max value of the enum */
+#define BALDO_MAX (__BALDO_MAX - 1) /* Max value of the enum */
 
 /* Kernel related functions */
 class Kernel
@@ -106,7 +107,7 @@ public:
    */
   static struct nl_sock *sk;
   static int family_id;
-  static struct nla_policy av_genl_policy[AV_MAX + 1];
+  static struct nla_policy baldo_genl_policy[BALDO_MAX + 1];
   static sqlite3* connection;            /* Connection to KERNEL_DB */
 
   /* 
@@ -131,7 +132,7 @@ public:
   /*
    * Thread function that listens for netlink messages.
    *
-   * This function sends an AV_HELLO_CMD to the kernel,
+   * This function sends an BALDO_HELLO_CMD to the kernel,
    * which will start capturing information. It will
    * then loop and receive messages until Daemon::stop
    * is set to true. Note that this function blocks the
@@ -150,7 +151,7 @@ public:
 
   /*
    * This function stops the netlink connection by
-   * sending a AV_BYE_CMD command to the kernel. The
+   * sending a BALDO_BYE_CMD command to the kernel. The
    * kernel will stop capturing information.
    * This function takes care of freeing the socket,
    * it is called by the gracefun stutdown and hard

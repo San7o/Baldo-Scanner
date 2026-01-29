@@ -15,7 +15,7 @@ int main(int argc, char **argv)
 {
 
   // Use openat to open the file relative to AT_FDCWD (current directory)
-  const char* filename = "shell.nix";
+  const char* filename = "LICENSE";
   int fd = syscall(SYS_open, filename, O_RDONLY, 0666);
   if (fd < 0)
   {

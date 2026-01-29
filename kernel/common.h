@@ -3,8 +3,8 @@
 // Mail:    giovanni.santini@proton.me
 // Github:  @San7o
 
-#ifndef _AV_COMMON_H
-#define _AV_COMMON_H
+#ifndef _BALDO_COMMON_H
+#define _BALDO_COMMON_H
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -15,13 +15,13 @@
 #define MAX_DATA_BUFFER_SIZE 5  /* the limit of a netlink message
                                    appears to be 16KB */
 
-extern spinlock_t av_ready_lock;
+extern spinlock_t baldo_ready_lock;
 extern bool send_ready;
 
 /* Spinlock protecting the variable to send
  * Note that "spin_lock_irqsave" is used to disable
  * interrupts while holding the lock, "spin_lock" does not. */
-extern spinlock_t av_data_lock;
+extern spinlock_t baldo_data_lock;
 
 /* See linux/shed.h for the definition of struct task_struct,
  * where we can take data from */
@@ -44,4 +44,4 @@ struct call_data_buffer_s
 
 extern struct call_data_buffer_s *call_data_buffer;
 
-#endif
+#endif // _BALDO_COMMON_H

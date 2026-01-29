@@ -49,9 +49,9 @@ void Daemon::Init()
   Logger::Init();
   Logger::Log(Enums::LogLevel::INFO, "Daemon starting");
 
-  if (!std::filesystem::exists(PROGRAM_PATH))
+  if (!std::filesystem::exists(BALDO_DIR))
   {
-    if (std::filesystem::create_directories(PROGRAM_PATH) == false)
+    if (std::filesystem::create_directories(BALDO_DIR) == false)
     {
       perror("create_directory");
       exit(1);
@@ -247,13 +247,13 @@ void Daemon::parse_settings(Settings settings, int fd)
 
     if (settings.update)
     {
-      MalwareDB db(DB_PATH);
+      MalwareDB db(DB_DIR);
       db.update();
     }
 
     if (strlen(settings.signaturesPath) > 0)
     {
-      MalwareDB db(DB_PATH);
+      MalwareDB db(DB_DIR);
       db.load(settings.signaturesPath);
     }
         

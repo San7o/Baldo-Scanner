@@ -62,23 +62,19 @@ void Yara::CompileRules(std::string yaraRulesPath)
       continue;
     }
 
-    // This file causes problems
-    if (rule.path().filename() == "yes.yar")
-    {
-      continue;
-    }
-
     FILE* file = fopen(rule.path().c_str(), "r");
     if (file == NULL)
     {
       Logger::Log(Enums::LogLevel::ERROR,
                   "Failed to open rule: " + rule.path().string());
+      return;
     }
     files.push_back(file);
     if (yr_compiler_add_file(compiler, file, NULL, rule.path().c_str()) != 0)
     {
       Logger::Log(Enums::LogLevel::ERROR,
                   "Failed to add rule: " + rule.path().string());
+      return;
     }
   }
    
@@ -87,11 +83,13 @@ void Yara::CompileRules(std::string yaraRulesPath)
   if (yr_compiler_get_rules(compiler, &rules) != ERROR_SUCCESS)
   {
     Logger::Log(Enums::LogLevel::ERROR, "Failed to get rules");
+    return;
   }
 
-  if (yr_rules_save(rules, RULES_PATH) != 0)
+  if (yr_rules_save(rules, RULES_DIR) != 0)
   {
     Logger::Log(Enums::LogLevel::ERROR, "Failed to save compiled rules");
+    return;
   }
 
   yr_compiler_destroy(compiler);
@@ -106,7 +104,7 @@ void Yara::CompileRules(std::string yaraRulesPath)
 void Yara::LoadRules(std::string yaraRulesPath, YR_RULES** rules)
 {
   Logger::Log(Enums::LogLevel::DEBUG, "Loading rules");
-  if (yr_rules_load("/etc/antivirus/compiled_rules.yar", rules) != ERROR_SUCCESS)
+  if (yr_rules_load(BALDO_DIR "/compiled_rules.yar", rules) != ERROR_SUCCESS)
   {
     Logger::Log(Enums::LogLevel::ERROR, "Failed to load rules in " + yaraRulesPath);
   }

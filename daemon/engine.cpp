@@ -102,8 +102,8 @@ void sha256_file(const std::string& filename, unsigned char* output)
 
 void Engine::scanSignature()
 {
-  MalwareDB db("/etc/antivirus/signatures.db");
-  int rc = sqlite3_open("/etc/antivirus/signatures.db", &db.connection);
+  MalwareDB db(BALDO_DIR "signatures.db");
+  int rc = sqlite3_open(BALDO_DIR "signatures.db", &db.connection);
   check_sqlite_error(rc, db.connection);
   
   if (db.connection == nullptr)
@@ -185,7 +185,7 @@ void Engine::scanSignature()
 void Engine::scanYaraRules()
 {
   YR_RULES* rules;
-  Yara::LoadRules(RULES_PATH, &rules);
+  Yara::LoadRules(RULES_DIR, &rules);
   Yara::Scan(rules, this->filePath, this->report);
 }
 

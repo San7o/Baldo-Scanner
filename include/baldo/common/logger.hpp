@@ -9,6 +9,8 @@
 #include <string>
 #include <stdio.h>
 
+#define BALDO_LOG_FILE "/tmp/baldo-logs.txt"
+
 namespace baldo
 {
 
@@ -26,7 +28,7 @@ enum class LogLevel
 };
 
 }
-
+  
 class Logger
 {
 public:

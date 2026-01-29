@@ -1,16 +1,63 @@
 # Baldo Scanner
 
 Baldo Scanner is malware scanner for Linux systems. It can do static
-malware analysis by signature matching and Yara rules. A database of
-signatures and rules is automatically fetched from
+malware analysis by signature matching and Yara rules, where a
+database of signatures and rules can be automatically fetched from
 [abuse.ch](https://abuse.ch/). Baldo scanner also implements a simple
-firewall to block network traffic on provided ips, and a sandbox
-environment to run untrusted applications.
+firewall to block network traffic on provided ips, kprobe-based
+syscall monitoring, and a sandbox environment for running untrusted
+applications.
+
+### Architecture overview
+
+The application is composed of:
+
+- A `kernel module`: This will hook into syscalls with `kprobes` based
+  on user defined rules, and send an event to the user space daemon
+  via `netlink` and/or `character devices`. A future implementation
+  may use `eBPF` for hooking. The kernel module also implements a
+  simple IP-based firewall.
+
+- A `user space daemon`: An event driven daemon that listens for
+  events from the kernel module, updates it's malware DB with online
+  resources, spawns threads when analyzing with the analysis engine,
+  sets iptables rules, runs processes in a sandbox environment. It
+  logs the system calls into a DB.
+
+- A `Malware DB`: Collection of malware signatures and `YARA` rules.
+
+- An `analysis engine`: Scans a file's signature and binary data based
+on `YARA` rules and signatures in the malware db.
+
+- A `cli` application to interface with the daemon via `Berkley
+  Sockets`
+
+- There might be a web UI in the future
+
+
+![image](https://github.com/user-attachments/assets/2982a357-3c3f-4e1b-9255-7c6e3db5e92d)
+
+
+## Usage
+
+If you want to use the firewall and syscall tracing, then you need to
+load the kernel module (instruction for building can be found
+later). Note that this is optional:
+
+```
+insmod ./kernel/baldo.ko
+```
+
+You need to run the daemon as root:
+
+```
+sudo baldo-daemon
+```
 
 ## Cli usage
 
 ```bash
-$> cli -h
+$> sudo baldo-cli -h
 Allowed options:
 
 Generic options:
@@ -38,40 +85,11 @@ Sandbox Options:
                            name,arg1,arg2,...
 ```
 
-### Structure
-
-The application is composed of:
-
-- A `kernel module`: This will hook into syscalls with `kprobes` based
-on user defined rules, and send an event to the user space daemon via
-`netlink` and/or `character devices`. A future implementation may use
-`eBPF` for hooking.
-
-- A `user space daemon`: An event driven daemon that listens for
-  events from the kernel module, updates It's malware DB with online
-  resources, spawns threads when analyzing with the analysis engine,
-  sets iptables rules, runs processes in a sandbox environment. It
-  logs the system calls into a DB.
-
-- A `Malware DB`: Collection of malware signatures and `YARA` rules.
-
-- An `analysis engine`: Scans a file's signature and binary data based
-on `YARA` rules and signatures in the malware db.
-
-- A `cli` application to interface with the daemon via `Berkley
-  Sockets`
-
-- There might be a web UI in the future
-
-
-## Architecture Image
-
-![image](https://github.com/user-attachments/assets/2982a357-3c3f-4e1b-9255-7c6e3db5e92d)
-
+# Building the project
 
 ## Dependencies
 
-- `C++17` compiler
+- `C++20` compiler
 
 - `cmake` to build the project
 
@@ -95,7 +113,7 @@ Install dependencies on ubuntu/debian:
 sudo apt install curl libboost1.81-dev libcurlpp-dev libyara-dev libnl-3-dev libseccomp-dev
 ```
 
-## Building the project
+## Build
 
 To build the project with `cmake`, run:
 
@@ -114,7 +132,7 @@ You can compile the docs with `doxygen`:
 doxygen scripts/doxygen.conf
 ```
 
-# Kernel virtual machine
+# Test
 
 To test the kernel module, we advise you to use a virtual machine. We
 will now see how to build the kernel module and run a VM with qemu.
@@ -149,11 +167,11 @@ make
 
 You can login with `root:root` or `test:test`.
 
-# Talk with the kernel module
+## Talk with the kernel module
 
 Both netlink and character devices are supported to communicate with
-the kernel module by compiling the module with the flag `AV_NETLINK`
-or `AV_CHAR_DEV`.
+the kernel module by compiling the module with the flag `BALDO_NETLINK`
+or `BALDO_CHAR_DEV`.
 
 ```bash
 # Data Collection

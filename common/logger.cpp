@@ -18,7 +18,7 @@ void Logger::Init()
 {
   Logger::log_level = Enums::LogLevel::INFO;
     
-  auto path = std::filesystem::absolute("/tmp/av-logs.txt");
+  auto path = std::filesystem::absolute(BALDO_LOG_FILE);
   Logger::SetLogFile(path);
   return;
 }
@@ -95,7 +95,7 @@ void Logger::SetLogFile(std::string path)
   Logger::log_file = fopen(path.c_str(), "a+");
   if (Logger::log_file == nullptr)
   {
-    perror("fopen");
+    perror("SetLogFile error in fopen");
     return;
   }
   

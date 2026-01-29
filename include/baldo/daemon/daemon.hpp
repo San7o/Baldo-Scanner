@@ -25,9 +25,9 @@
 
 #define SOCK_PATH    "/tmp/av1"
 #define VERSION      "1.0"
-#define PROGRAM_PATH "/etc/baldo-scanner/"
-#define RULES_PATH   "/etc/baldo-scanner/compiled_rules.yar"
-#define DB_PATH      "/etc/baldo-scanner/signatures.db"
+#define BALDO_DIR "/etc/baldo-scanner/"
+#define RULES_DIR   BALDO_DIR "compiled_rules.yar"
+#define DB_DIR      BALDO_DIR "signatures.db"
 
 namespace baldo
 {

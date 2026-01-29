@@ -19,7 +19,7 @@ using namespace baldo;
 
 struct nl_sock *Kernel::sk = NULL;
 int Kernel::family_id = -1;
-struct nla_policy Kernel::av_genl_policy[AV_MAX + 1] = {};
+struct nla_policy Kernel::baldo_genl_policy[BALDO_MAX + 1] = {};
 sqlite3* Kernel::connection = nullptr;
 
 //
@@ -47,17 +47,17 @@ void Kernel::Init()
   }
 
   // Setup policies
-  Kernel::av_genl_policy[AV_MSG] = {     // null terminated strings
+  Kernel::baldo_genl_policy[BALDO_MSG] = {     // null terminated strings
     .type = NLA_NUL_STRING,
     .minlen = 0,
     .maxlen = 0
   };
-  Kernel::av_genl_policy[AV_IPv4] = {    // 32-bit unsigned integers
+  Kernel::baldo_genl_policy[BALDO_IPv4] = {    // 32-bit unsigned integers
     .type = NLA_U32,
     .minlen = 0,
     .maxlen = 0
   };
-  Kernel::av_genl_policy[AV_DATA] = {    // binary data
+  Kernel::baldo_genl_policy[BALDO_DATA] = {    // binary data
     .type = NLA_BINARY,
     .minlen = 0,
     .maxlen = 0
@@ -87,7 +87,7 @@ void Kernel::Init()
   check_sqlite_error(ret, connection);
 
   // Resolve the family ID
-  Kernel::family_id = genl_ctrl_resolve(Kernel::sk, AV_FAMILY_NAME);
+  Kernel::family_id = genl_ctrl_resolve(Kernel::sk, BALDO_FAMILY_NAME);
   if (Kernel::family_id < 0)
   {
     nl_perror(Kernel::family_id, "genl_ctrl_resolve");
@@ -169,7 +169,7 @@ void Kernel::send_ip_to_firewall(uint32_t ipv4, Enums::IpAction action)
   {
     // Send BLOCK message to kernel
     if (!genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ,
-                     Kernel::family_id, 0, 0, AV_BLOCK_IP_CMD, 1))
+                     Kernel::family_id, 0, 0, BALDO_BLOCK_IP_CMD, 1))
     {
       Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put");
       return;
@@ -179,7 +179,7 @@ void Kernel::send_ip_to_firewall(uint32_t ipv4, Enums::IpAction action)
   {
     // Send UNBLOCK message to kernel
     if (!genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ,
-                     Kernel::family_id, 0, 0, AV_UNBLOCK_IP_CMD, 1))
+                     Kernel::family_id, 0, 0, BALDO_UNBLOCK_IP_CMD, 1))
     {
       Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put");
       return;
@@ -187,7 +187,7 @@ void Kernel::send_ip_to_firewall(uint32_t ipv4, Enums::IpAction action)
   }
 
   // Sending the IP
-  NLA_PUT_U32(msg, AV_IPv4, ipv4);
+  NLA_PUT_U32(msg, BALDO_IPv4, ipv4);
 
   ret = nl_send_auto(bye_sk, msg);
   if (ret < 0)
@@ -245,7 +245,7 @@ void *Kernel::thread_listen_kernel([[maybe_unused]] void* arg)
 
   // Construct the messge
   if (!genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, Kernel::family_id,
-                   0, 0, AV_HELLO_CMD, 1))
+                   0, 0, BALDO_HELLO_CMD, 1))
   {
     Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put");
     pthread_exit(NULL);
@@ -286,7 +286,7 @@ void *Kernel::thread_listen_kernel([[maybe_unused]] void* arg)
 
     // Construct the messge
     if (!genlmsg_put(fetch_msg, NL_AUTO_PID, NL_AUTO_SEQ,
-                     Kernel::family_id, 0, 0, AV_FETCH_CMD, 1))
+                     Kernel::family_id, 0, 0, BALDO_FETCH_CMD, 1))
     {
       Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put in loop");
       pthread_exit(NULL);
@@ -318,7 +318,7 @@ int Kernel::kernel_msg_callback(struct nl_msg *msg,
 {
   struct nlmsghdr *nlh = nlmsg_hdr(msg);
 
-  struct nlattr *attrs[AV_MAX + 1];
+  struct nlattr *attrs[BALDO_MAX + 1];
   if (nlh->nlmsg_type == NLMSG_ERROR)
   {
     struct nlmsgerr *err = (struct nlmsgerr*) nlmsg_data(nlh);
@@ -330,11 +330,11 @@ int Kernel::kernel_msg_callback(struct nl_msg *msg,
   }
 
   struct genlmsghdr *gnlh = (struct genlmsghdr*) nlmsg_data(nlh);
-  nla_parse(attrs, AV_MAX, genlmsg_attrdata(gnlh, 0),
+  nla_parse(attrs, BALDO_MAX, genlmsg_attrdata(gnlh, 0),
             genlmsg_attrlen(gnlh, 0), NULL);
-  if (attrs[AV_DATA])
+  if (attrs[BALDO_DATA])
   {
-    struct call_data_buffer_s *call_data_buffer = (struct call_data_buffer_s*) nla_data(attrs[AV_DATA]);
+    struct call_data_buffer_s *call_data_buffer = (struct call_data_buffer_s*) nla_data(attrs[BALDO_DATA]);
     //print_call_data_buffer(call_data_buffer);
     Kernel::save_kernel_data(call_data_buffer);
   }
@@ -379,7 +379,7 @@ void Kernel::stop_kernel_netlink()
   }
 
   /* Send BYE message to kernel */
-  if (!genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, Kernel::family_id, 0, 0, AV_BYE_CMD, 1))
+  if (!genlmsg_put(msg, NL_AUTO_PID, NL_AUTO_SEQ, Kernel::family_id, 0, 0, BALDO_BYE_CMD, 1))
   {
     Logger::Log(Enums::LogLevel::ERROR, "genlmsg_put");
     return;

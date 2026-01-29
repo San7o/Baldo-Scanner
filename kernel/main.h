@@ -3,8 +3,8 @@
 // Mail:    giovanni.santini@proton.me
 // Github:  @San7o
 
-#ifndef _AV_MAIN_H
-#define _AV_MAIN_H
+#ifndef _BALDO_MAIN_H
+#define _BALDO_MAIN_H
 
 /* Kernel headers */
 #include <linux/kernel.h>
@@ -20,11 +20,11 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/ip.h>
 
-#define MODULE_NAME "av"
-#define AV_DEV_FIREWALL_NAME "av_firewall"
-#define AV_DEV_NOTIFY_NAME "av_notify"
+#define MODULE_NAME "baldo"
+#define BALDO_DEV_FIREWALL_NAME "baldo_firewall"
+#define BALDO_DEV_NOTIFY_NAME "baldo_notify"
 
-int __init av_init(void);
-void __exit av_exit(void);
+int __init baldo_init(void);
+void __exit baldo_exit(void);
 
-#endif
+#endif // _BALDO_MAIN_H
